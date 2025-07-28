@@ -167,18 +167,14 @@ function maze:startmaze(skipintro, restart)
 	self.deathtimer = 0
 	self.ghosts = {}
 	self.pacman = new(pacman)
-	self.pacman:load()
-	self.pacman.x = self.pacmanx
-	self.pacman.y = self.pacmany
+	self.pacman:load(self.pacmanx, self.pacmany)
 	self.pacman.speed = getclamped(maze.pacmanspeed, self.level)
 	self.pacman.frightspeed = getclamped(maze.pacmanfrightspeed, self.level)
 	self.scatter = 0
 	self.scattertime = 1
 	for index, value in ipairs(self.startghost) do
 		local g = new(ghost)
-		g:load(value.type, value.inghostbox)
-		g.x = value.x
-		g.y = value.y
+		g:load(value.x, value.y, value.type, value.inghostbox)
 		g.speed = getclamped(maze.ghostspeed, self.level)
 		g.tunnelspeed = getclamped(maze.ghosttunnelspeed, self.level)
 		g.frightspeed = getclamped(maze.ghostfrightspeed, self.level)
@@ -209,25 +205,23 @@ function maze:getcruiseelroy()
 	end
 end
 
-function maze:shouldexitghostbox(behavior)
-	return true
-end
-
 function maze:getpacman(x, y)
-	return self.pacman.x, self.pacman.y, self.pacman.direction
+	local px, py = self.pacman:getpos()
+	return px, py, self.pacman:getdirection()
 end
 
 function maze:getghost(t, x, y)
 	local nearest = math.huge
 	local gx, gy, gdir = love.math.random(0, self.tilemap.width * 8), love.math.random(0, self.tilemap.height * 8), love.math.random(1, 4)
-	for index, value in ipairs(self.ghosts) do
-		if value.behavior == t then
-			local dist = math.sqrt((x - value.x)^2 + (y - value.y)^2)
+	for index, g in ipairs(self.ghosts) do
+		if g.behavior == t then
+			local _x, _y = g:getpos()
+			local dist = math.sqrt((x - _x)^2 + (y - _y)^2)
 			if dist < nearest then
 				nearest = dist
-				gx = value.x
-				gy = value.y
-				gdir = value.direction
+				gx = _x
+				gy = _y
+				gdir = g:getdirection()
 			end
 		end
 	end
@@ -343,16 +337,17 @@ function maze:addscore(amt)
 	self.score = self.score + amt
 end
 
-function maze:collisioncheck(ptx, pty, value)
-	local tx, ty = math.floor(value.x/8), math.floor(value.y/8)
+function maze:collisioncheck(ptx, pty, g)
+	local tx, ty = g:gettilepos()
 	if tx == ptx and ty == pty then
-		if value.fright > 0 then
+		if g.fright > 0 then
 			self.ghostcombo = math.min(self.ghostcombo + 1, 4)
-			value:eaten(self.ghostcombo, self:getghostbox(value.x, value.y, true))
+			local gx, gy = g:getpos()
+			g:eaten(self.ghostcombo, self:getghostbox(gx, gy, true))
 			self.pausetimer = 60
 			self.hidepacman = true
 			self:addscore(2^(self.ghostcombo) * 100)
-		elseif not value.eyes and not value.inghostbox and not value.exitingghostbox and not value.eatenpindex then
+		elseif not g.eyes and not g.inghostbox and not g.exitingghostbox and not g.eatenpindex then
 			if not self.pacman.dead then
 				sounds.stop_all()
 				self.pausetimer = 90
@@ -415,7 +410,7 @@ function maze:update()
 				self.ghosts = {}
 			end
 		end
-		local ptx, pty = math.floor(self.pacman.x/8), math.floor(self.pacman.y/8)
+		local ptx, pty = self.pacman:gettilepos()
 		local anyeyes = false
 		local anyfright = false
 		for index, value in ipairs(self.ghosts) do

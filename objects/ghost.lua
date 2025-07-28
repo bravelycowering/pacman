@@ -5,7 +5,7 @@ local rng = require "rng"
 
 local ghost = {}
 
-function ghost:load(behavior, inghostbox)
+function ghost:load(x, y, behavior, inghostbox)
 	self.palette = behavior
 	self.behavior = behavior
 	self.dotcount = 0
@@ -22,8 +22,8 @@ function ghost:load(behavior, inghostbox)
 	self.exitingghostbox = false
 	self.fright = 0
 	self.eyes = false
-	self.x = 0
-	self.y = 0
+	self.x = x
+	self.y = y
 	self.exitx = 0
 	self.exity = 0
 	self.exitbelow = false
@@ -32,6 +32,18 @@ function ghost:load(behavior, inghostbox)
 	self.tunnelspeed = 0.5
 	self.frightspeed = 0.5
 	self.eatenpindex = false
+end
+
+function ghost:gettilepos()
+	return math.floor(self.x/8), math.floor(self.y/8)
+end
+
+function ghost:getpos()
+	return math.floor(self.x), math.floor(self.y)
+end
+
+function ghost:getdirection()
+	return self.direction
 end
 
 function ghost:doteaten(priority)

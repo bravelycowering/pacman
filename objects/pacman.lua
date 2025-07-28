@@ -5,18 +5,30 @@ local data = require "data"
 
 local pacman = {}
 
-function pacman:load()
+function pacman:load(x, y)
 	self.frame = 1
 	self.direction = 1
 	self.moving = true
 	self.controls = true
-	self.x = 0
-	self.y = 0
+	self.x = x
+	self.y = y
 	self.sp = 1
 	self.speed = 1
 	self.eatsound = 0
 	self.deathtimer = 0
 	self.dead = false
+end
+
+function pacman:gettilepos()
+	return math.floor(self.x/8), math.floor(self.y/8)
+end
+
+function pacman:getpos()
+	return math.floor(self.x), math.floor(self.y)
+end
+
+function pacman:getdirection()
+	return self.direction
 end
 
 function pacman:canmove(maze, direction, x, y)
