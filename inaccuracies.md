@@ -1,0 +1,9 @@
+- pacman early cornering is inaccurate
+- ghost targeting is probably slightly inaccurate given that the target is recorded as a point not a tile
+- ghosts can move upwards in the above ghost house and pacman tunnel (they shouldnt be able to)
+- ghost movement directions are not prioritized the same
+- scatter timer continues ticking while ghosts are frightened
+- maze flash does not happen
+- slight screen visuals where the board would vanish for a split second while the game resets are not present
+- rng function is inaccurate, currently simulated based on the original routines
+- 256 kill screen is inaccurate, currently simulated based on the original routines
