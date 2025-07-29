@@ -1,11 +1,11 @@
 local function quad(x, y, width, height)
-	return love.graphics.newQuad(x, y, width, height, 128, 256)
+	return love.graphics.newQuad(x, y, width, height, 256, 256)
 end
 
 local function quadStrip(count, x, y, width, height)
 	local quads = {}
 	for i = 1, count do
-		quads[i] = love.graphics.newQuad(x, y, width, height, 128, 256)
+		quads[i] = quad(x, y, width, height)
 		x = x + width
 	end
 	return quads
@@ -14,7 +14,7 @@ end
 local function quadColumn(count, x, y, width, height)
 	local quads = {}
 	for i = 1, count do
-		quads[i] = love.graphics.newQuad(x, y, width, height, 128, 256)
+		quads[i] = quad(x, y, width, height)
 		y = y + height
 	end
 	return quads
@@ -36,10 +36,10 @@ local data = {}
 
 function data.loadSprites()
 	data.ghostanim = {
-		quadStrip(2, 0, 128, 16, 16), -- left
-		quadStrip(2, 32, 128, 16, 16), -- up
-		quadStrip(2, 64, 128, 16, 16), -- right
-		quadStrip(2, 96, 128, 16, 16), -- down
+		quadStrip(2, 0, 128, 16, 16), -- right
+		quadStrip(2, 32, 128, 16, 16), -- down
+		quadStrip(2, 64, 128, 16, 16), -- left
+		quadStrip(2, 96, 128, 16, 16), -- up
 		quadColumn(2, 80, 192, 16, 16), -- frightened
 	}
 
@@ -66,9 +66,55 @@ end
 data.width = 28
 data.height = 36
 
--- ======== MAZE DATA ========
+-- ======== POI ========
 
-data.mazewidth = 28
-data.mazeheight = 32
+data.poi = {}
+data.poiargs = {}
+data.poinames = {}
+
+local FLAG = string.byte "F"
+
+local function poi(name)
+	return function(id, formatstr)
+		local names = {}
+		local args = {}
+		if formatstr then
+			for m in formatstr:gmatch("%S+") do
+				local colon = m:find(":")
+				local k, v = m:sub(1, colon - 1), m:sub(colon + 1)
+				if v:byte(1) == FLAG then
+					local flagnames = {}
+					for f in k:gmatch("[^,]+") do
+						flagnames[#flagnames+1] = f
+					end
+					k = flagnames
+					v = "I"..v:sub(2)
+				end
+				names[#names+1] = k
+				args[#args+1] = v
+			end
+		end
+		data.poi[id] = name
+		data.poiargs[id] = args
+		data.poinames[id] = names
+	end
+end
+
+poi "pacman" (1, "subpos:I1")
+poi "ghost" (2, "subpos:I1 behavior:I1 palette:I1 direction:I1")
+poi "status" (3)
+poi "fruit" (4)
+
+for key, value in pairs(data.poi) do
+	print(key, value, ">"..table.concat(data.poiargs[key]))
+	for i, v in ipairs(data.poiargs[key]) do
+		local k = data.poinames[key][i]
+		if type(k) == "table" then
+			print("", table.concat(k, ","), v)
+		else
+			print("", k, v)
+		end
+	end
+end
 
 return data

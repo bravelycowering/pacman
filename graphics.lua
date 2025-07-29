@@ -16,7 +16,7 @@ end
 
 local tileQuads = {}
 for i = 0, 255 do
-	tileQuads[i] = love.graphics.newQuad((i % 16) * 8, math.floor(i / 16) * 8, 8, 8, 128, 256)
+	tileQuads[i] = love.graphics.newQuad((i % 16) * 8, math.floor(i / 16) * 8, 8, 8, 256, 256)
 end
 
 local charQuads = {}

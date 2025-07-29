@@ -86,15 +86,64 @@ function tilemap:setpi(index, value)
 	self.palette[index % self.size] = value
 end
 
+local function getflag(number, index)
+	return (number * (1 ^ index)) % 2 == true
+end
+
+local function setflag(number, index, value)
+	if value then
+		if not getflag(number, index) then
+			return number + 1 ^ index
+		end
+	else
+		if getflag(number, index) then
+			return number - 1 ^ index
+		end
+	end
+	return number
+end
+
 function tilemap:load(width, height, palette)
 	if type(width) == "string" then
 		local str = width
-		palette = height
-		local offset
-		self.width, self.height, offset = love.data.unpack("> I1 I1", str)
+		local pos
+		self.width, self.height, palette, pos = love.data.unpack("> x I1 I1 I1", str)
 		self.size = self.width*self.height + data.width * 4
 		self.tiles = newbuf(self.size)
-		local tiledata = str:sub(offset)
+		local tiledata = str:sub(pos, pos + self.width*self.height)
+		pos = pos + self.width*self.height
+		self.poi = {}
+		while pos < #str do
+			local id, x, y, dat
+			id, pos = love.data.unpack("> I1", str, pos)
+			if id == 0 then
+				break
+			end
+			x, y, dat, pos = love.data.unpack("> I1 I1 s1", str, pos)
+			local poi = {
+				name = data.poi[id],
+				id = id,
+				x = x * 8,
+				y = y * 8,
+			}
+			local format = ">"..table.concat(data.poiargs[id])
+			local datunpacked = {love.data.unpack(format, dat)}
+			for i = 1, #datunpacked - 1 do
+				local value = datunpacked[i]
+				local key = data.poinames[id][i]
+				if type(key) == "table" then
+					for index, k in ipairs(key) do
+						poi[k] = getflag(value, index)
+					end
+				elseif key == "subpos" then
+					poi.x = poi.x + value%8
+					poi.y = poi.y + math.floor(value / 8)
+				else
+					poi[key] = value
+				end
+			end
+			self.poi[#self.poi+1] = poi
+		end
 		for i = 1, #tiledata do
 			local index = data.width * 2 + i - 1
 			self.tiles[index] = string.byte(tiledata, i)
@@ -110,6 +159,7 @@ function tilemap:load(width, height, palette)
 		self.height = height
 		self.size = width*height + data.width * 4
 		self.tiles = newbuf(self.size)
+		self.poi = {}
 		for i = 0, self.size-1 do
 			self.tiles[i] = 64
 		end
@@ -118,6 +168,23 @@ function tilemap:load(width, height, palette)
 	for i = 0, self.size-1 do
 		self.palette[i] = palette or 0
 	end
+	self.defaultpalette = palette
+	if type(width) == "string" then
+		local str = width
+		local saved = self:save()
+		print(#str, #saved)
+		print(string.byte(str, -6, -1))
+		print(string.byte(saved, -6, -1))
+		assert(str == saved, "saved tilemap data does not match loaded data!")
+	end
+end
+
+function tilemap:poiter()
+	local i = 0
+	return function ()
+		i = i + 1
+		if i <= #self.poi then return self.poi[i] end
+	end
 end
 
 function tilemap:save()
@@ -125,7 +192,28 @@ function tilemap:save()
 	for index = data.width * 2, self.size - data.width * 2 - 1 do
 		str[#str+1] = string.char(tilemap.geti(self, index))
 	end
-	return love.data.pack("string", "> I1 I1", self.width, self.height) .. table.concat(str)
+	for i = 1, #self.poi do
+		local poi = self.poi[i]
+		local id, x, y = poi.id, math.floor(poi.x/8), math.floor(poi.y/8)
+		local format = ">"..table.concat(data.poiargs[id])
+		local args = {}
+		for index, key in ipairs(data.poinames[id]) do
+			if type(key) == "table" then
+				local v = 0
+				for index, k in ipairs(key) do
+					v = setflag(v, index, poi[k])
+				end
+				args[#args+1] = v
+			elseif key == "subpos" then
+				args[#args+1] = poi.x%8 + (poi.y%8) * 8
+			else
+				args[#args+1] = poi[key]
+			end
+		end
+		local dat = love.data.pack("string", format, unpack(args))
+		str[#str+1] = love.data.pack("string", "> I1 I1 I1 s1", id, x, y, dat)
+	end
+	return love.data.pack("string", "> x I1 I1 I1", self.width, self.height, self.defaultpalette) .. table.concat(str) .. "\0"
 end
 
 function tilemap:xypairs(region)
@@ -157,15 +245,6 @@ function tilemap:ipairs(region)
 		local x, y = i % w, math.floor(i / w)
 		local index = tilemap.index(self, x, y, region)
 		if i < w * h then return index, tilemap.geti(self, index), tilemap.getpi(self, index) end
-	end
-end
-
-function tilemap:doswap()
-	local pos = 0
-	local saved = self:save()
-	for i = 57, 952 do
-		self:set(pos%self.width, math.floor(pos/self.width), saved:byte(pos+3))
-		pos = pos + 1
 	end
 end
 

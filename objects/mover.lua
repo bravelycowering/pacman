@@ -5,33 +5,60 @@ local rng = require "rng"
 
 local mover = {}
 
-function mover:load(x, y)
-	self.lookdirection = 2
-	self.direction = 2
+function mover:load(maze, x, y, direction)
+	self.lookdirection = direction
+	self.direction = direction
 	self.x = x
 	self.y = y
-	self.speed = 1
+	self.maze = maze -- mover needs access to the maze pretty much all of the time, so ill let this slide
+	-- mover having access to maze at all times also allows us to draw debug information if need be
 	self.targetx = 0
 	self.targety = 0
-	self.random = false
-	self.control = false
+	self.targeting = true
+	self.cornering = false
 end
 
-local function dxdy(direction)
+local function dxdy(direction, speed)
 	if direction == 0 then
-		return 1, 0
+		return speed, 0
 	elseif direction == 1 then
-		return 0, 1
+		return 0, speed
 	elseif direction == 2 then
-		return -1, 0
+		return -speed, 0
 	elseif direction == 3 then
-		return 0, -1
+		return 0, -speed
 	end
 end
 
-function mover:move(maze)
+local function checksolid(maze, tx, ty, direction)
+	local dx, dy = dxdy(direction, 1)
+	local solid = maze:getsolid(tx + dx, ty + dy)
+	return solid
+end
+
+local function dist(x1, y1, x2, y2)
+	return math.sqrt((x1 - x2)^2 + (y1 - y2)^2)
+end
+
+function mover:setdirection(direction)
+	if not checksolid(self.maze, math.floor(self.x / 8), math.floor(self.y / 8), direction) then
+		self.lookdirection = direction
+	end
+end
+
+function mover:settarget(x, y)
+	self.targetx = math.floor(x / 8)
+	self.targety = math.floor(y / 8)
+end
+
+function mover:move(speed, random)
+	if self.direction%2 == self.lookdirection%2 then
+		self.direction = self.lookdirection
+	end
 	local x, y = self.x, self.y
-	local dx, dy = dxdy(self.direction)
+	local maze = self.maze
+	local dx, dy = dxdy(self.direction, speed)
+	local ldx, ldy = dxdy(self.lookdirection, speed)
 	local tx, ty = math.floor(x / 8), math.floor(y / 8)
 	local tcx, tcy = math.floor(x / 8 + 0.5), math.floor(y / 8 + 0.5)
 	local nx, ny = x + dx, y + dy
@@ -39,9 +66,67 @@ function mover:move(maze)
 	local ntcx, ntcy = math.floor(nx / 8 + 0.5), math.floor(ny / 8 + 0.5)
 	local changedtile = tx ~= ntx or ty ~= nty
 	local passedcenter = tcx ~= ntcx or tcy ~= ntcy
-	if passedcenter then
-		self.direction = love.math.random(0, 3)
+	if changedtile then
+		local opposite_direction = (self.lookdirection + 2) % 4
+		if random then
+			local direction = rng() % 4
+			if direction == opposite_direction or checksolid(maze, ntx, nty, direction) then
+				direction = (direction + 1) % 4
+			end
+			if direction == opposite_direction or checksolid(maze, ntx, nty, direction) then
+				direction = (direction + 1) % 4
+			end
+			if direction == opposite_direction or checksolid(maze, ntx, nty, direction) then
+				direction = (direction + 1) % 4
+			end
+			if checksolid(maze, ntx, nty, direction) then
+				direction = opposite_direction
+			end
+			self.lookdirection = direction
+		elseif self.targeting then
+			local nearest = math.huge
+			local direction = opposite_direction
+			for i = 0, 3 do
+				local ddx, ddy = dxdy(i, 1)
+				local distance = dist(self.targetx, self.targety, ntx + ddx, nty + ddy)
+				if i ~= opposite_direction and distance <= nearest and not checksolid(maze, ntx, nty, i) then
+					direction = i
+					nearest = distance
+				end
+			end
+			self.lookdirection = direction
+		end
 	end
+	if passedcenter then
+		if self.lookdirection ~= self.direction then
+			self.direction = self.lookdirection
+			local cx, cy = ntx*8 + 4, nty*8 + 4
+			if dx ~= 0 then
+				-- snap to center of tile (this is inaccurate but idgaf)
+				nx = cx
+				-- movement preservation optimization (unsure if accurate to pacman)
+				-- ny = ny + ldy - (nx - cx)
+			end
+			if dy ~= 0 then
+				-- movement preservation optimization (unsure if accurate to pacman)
+				-- nx = nx + ldx - (ny - cy)
+				-- snap to center of tile (this is inaccurate but idgaf)
+				ny = cy
+			end
+		end
+	end
+	if self.cornering and self.direction ~= self.lookdirection then
+		nx = nx + ldx
+		ny = ny + ldy
+	end
+	self.x = nx
+	self.y = ny
+	if maze then
+		local width, height = maze:getdimensions()
+		self.x = self.x % width
+		self.y = self.y % height
+	end
+	return true
 end
 
 return mover

@@ -84,7 +84,7 @@ end
 function maze:loadmaze(tiles)
 	-- create tiles
 	self.tilemap = new(tilemap)
-	self.tilemap:load(tiles, 17)
+	self.tilemap:load(tiles)
 	self.mazelayout = tiles
 	self.dots = 0
 	self.pacmanx = 0
@@ -97,59 +97,27 @@ function maze:loadmaze(tiles)
 	self.ghostboxy = 0
 	self.dotblink = 0
 	self.ghostcombo = 0
-	self.startghost = {}
+	self.objpois = {}
 	-- levelstats
 	self.scattertimes = getclamped(maze.scatter, self.level)
 	self.power = getclamped(maze.powertime, self.level)
+	-- load from pois
+	for poi in self.tilemap:poiter() do
+		if poi.name == "pacman" then
+			self.pacmanx = poi.x + 4
+			self.pacmany = poi.y + 4
+		end
+		if poi.name == "ghost" then
+			self.objpois[#self.objpois+1] = poi
+		end
+	end
 	-- replace placeholder tiles
 	for x, y, tile in self.tilemap:xypairs() do
-		if tile >= maze.ids.start then
-			self.tilemap:set(x, y, 64)
-			local modifier = self.tilemap:get(x + 1, y)
-			if tile == maze.ids.start then
-				local xoff = 4
-				if modifier == 0 then
-					xoff = 8
-				end
-				self.tilemap:set(x + 1, y, 64)
-				self.pacmanx = x * 8 + xoff
-				self.pacmany = y * 8 + 4
-			end
-			if tile >= maze.ids.ghost and tile < maze.ids.ghost + maze.ids.ghosts then
-				local xoff = 4
-				if modifier == 0 or modifier == 2 then
-					xoff = 8
-				end
-				self.startghost[#self.startghost+1] = {
-					x = x * 8 + xoff,
-					y = y * 8 + 4,
-					type = tile - maze.ids.ghost + 1,
-					inghostbox = modifier == 1 or modifier == 2
-				}
-				self.tilemap:set(x + 1, y, 64)
-			end
-			if tile == maze.ids.fruit then
-				if modifier == 0 then
-					self.fruitx = x * 8 + 8
-					self.fruity = y * 8 + 4
-				else
-					self.fruitx = x * 8 + 4
-					self.fruity = y * 8 + 4
-				end
-				self.tilemap:set(x + 1, y, 64)
-				self.readyx = x
-				self.readyy = y
-			end
-			if tile == maze.ids.ghostbox then
-				self.ghostboxx = x
-				self.ghostboxy = y
-				self.tilemap:set(x, y, 160, nil, 2)
-				self.tilemap:set(x + 1, y, 160, nil, 2)
-			end
-		else
-			if tile == maze.ids.dot or tile == maze.ids.powerdot then
-				self.dots = self.dots + 1
-			end
+		if tile == maze.ids.dot or tile == maze.ids.powerdot then
+			self.dots = self.dots + 1
+		end
+		if tile == 160 then
+			self.tilemap:set(x, y, 160, nil, 2)
 		end
 	end
 	self.totaldots = self.dots
@@ -172,14 +140,16 @@ function maze:startmaze(skipintro, restart)
 	self.pacman.frightspeed = getclamped(maze.pacmanfrightspeed, self.level)
 	self.scatter = 0
 	self.scattertime = 1
-	for index, value in ipairs(self.startghost) do
-		local g = new(ghost)
-		g:load(value.x, value.y, value.type, value.inghostbox)
-		g.speed = getclamped(maze.ghostspeed, self.level)
-		g.tunnelspeed = getclamped(maze.ghosttunnelspeed, self.level)
-		g.frightspeed = getclamped(maze.ghostfrightspeed, self.level)
-		g.dotcount = getclamped(getclamped(maze.startdotcount, value.type), self.level)
-		self.ghosts[index] = g
+	for index, poi in ipairs(self.objpois) do
+		if poi.name == "ghost" then
+			local g = new(ghost)
+			g:load(self, poi)
+			g.speed = getclamped(maze.ghostspeed, self.level)
+			g.tunnelspeed = getclamped(maze.ghosttunnelspeed, self.level)
+			g.frightspeed = getclamped(maze.ghostfrightspeed, self.level)
+			g.dotcount = getclamped(getclamped(maze.startdotcount, g.behavior), self.level)
+			self.ghosts[index] = g
+		end
 	end
 	self.readystr, self.readypalstr = self.tilemap:getstr(self.readyx - 2, self.readyy, 6)
 	self.tilemap:setstr(self.readyx - 2, self.readyy, "READY[", nil, 15)
@@ -420,7 +390,7 @@ function maze:update()
 				anyfright = true
 			else
 				if turnaround then
-					value.direction = (value.direction + 1) % 4 + 1
+					value:turnaround()
 				end
 			end
 			if self.pausetimer <= 0 and self:collisioncheck(ptx, pty, value) then return end
@@ -506,6 +476,11 @@ function maze:eat(tilex, tiley)
 	end
 end
 
+function maze:getsolid(tilex, tiley)
+	local tile = self.tilemap:get(tilex%self.tilemap.width, tiley%self.tilemap.height)
+	return tile >= 128 and tile <= 162
+end
+
 function maze:canmove(x, y, dx, dy)
 	local tilex
 	local tiley
@@ -523,8 +498,7 @@ function maze:canmove(x, y, dx, dy)
 	else
 		tiley = math.floor((y + dy - 4)/8 + 0.5)
 	end
-	local tile = self.tilemap:get(tilex%self.tilemap.width, tiley%self.tilemap.height)
-	return tile < 128 or tile > 162
+	return not self:getsolid(tilex, tiley)
 end
 
 local crtshader = love.graphics.newShader("crt.glsl")
