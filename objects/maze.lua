@@ -75,8 +75,8 @@ function maze:load(tiles, settings)
 	self.highscore = 0
 	self.score = 0
 	self.pupblink = 0
-	self.readystr = ""
-	self.readypalstr = ""
+	self.statusstr = ""
+	self.statuspalstr = ""
 	self:loadmaze(tiles)
 	self:startmaze()
 end
@@ -91,8 +91,8 @@ function maze:loadmaze(tiles)
 	self.pacmany = 0
 	self.fruitx = 0
 	self.fruity = 0
-	self.readyx = 0
-	self.readyy = 0
+	self.statusx = 0
+	self.statusy = 0
 	self.ghostboxx = 0
 	self.ghostboxy = 0
 	self.dotblink = 0
@@ -106,6 +106,10 @@ function maze:loadmaze(tiles)
 		if poi.name == "pacman" then
 			self.pacmanx = poi.x + 4
 			self.pacmany = poi.y + 4
+		end
+		if poi.name == "status" then
+			self.statusx = math.floor(poi.x / 8)
+			self.statusy = math.floor(poi.y / 8)
 		end
 		if poi.name == "ghost" then
 			self.objpois[#self.objpois+1] = poi
@@ -151,8 +155,8 @@ function maze:startmaze(skipintro, restart)
 			self.ghosts[index] = g
 		end
 	end
-	self.readystr, self.readypalstr = self.tilemap:getstr(self.readyx - 2, self.readyy, 6)
-	self.tilemap:setstr(self.readyx - 2, self.readyy, "READY[", nil, 15)
+	self.statusstr, self.statuspalstr = self.tilemap:getstr(self.statusx, self.statusy, 8)
+	self.tilemap:setstr(self.statusx, self.statusy, "\64\64READY[\64\64", nil, 15)
 	if skipintro then
 		self.starttimer = 126
 		self:drawfruit()
@@ -342,7 +346,7 @@ function maze:update()
 	end
 	if self.starttimer <= 0 then
 		if self.starttimer == 0 then
-			self.tilemap:setstr(self.readyx - 2, self.readyy, self.readystr, nil, self.readypalstr)
+			self.tilemap:setstr(self.statusx, self.statusy, self.statusstr, nil, self.statuspalstr)
 		end
 		local turnaround = false
 		if self.pausetimer > 0 then
@@ -358,7 +362,7 @@ function maze:update()
 					self:startmaze(true, true)
 					return
 				else
-					self.tilemap:setstr(self.readyx - 4, self.readyy, "GAME\64\64OVER", nil, 1)
+					self.tilemap:setstr(self.statusx, self.statusy, "GAME\64\64OVER", nil, 1)
 				end
 			end
 			if self.scattertime > 0 then
