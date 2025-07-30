@@ -172,10 +172,13 @@ function tilemap:load(width, height, palette)
 	if type(width) == "string" then
 		local str = width
 		local saved = self:save()
-		print(#str, #saved)
-		print(string.byte(str, -6, -1))
-		print(string.byte(saved, -6, -1))
-		assert(str == saved, "saved tilemap data does not match loaded data!")
+		if str ~= saved then
+			print(#str)
+			print(string.byte(str, -6, -1))
+			print(#saved)
+			print(string.byte(saved, -6, -1))
+			assert(str == saved, "saved tilemap data does not match loaded data!\nprinted lengths and last 6 bytes for comparison")
+		end
 	end
 end
 

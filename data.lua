@@ -103,16 +103,19 @@ end
 poi "pacman" (1, "subpos:I1")
 poi "ghost" (2, "subpos:I1 behavior:I1 palette:I1 direction:I1")
 poi "status" (3)
-poi "fruit" (4)
+poi "fruit" (4, "subpos:I1")
 
-for key, value in pairs(data.poi) do
-	print(key, value, ">"..table.concat(data.poiargs[key]))
-	for i, v in ipairs(data.poiargs[key]) do
-		local k = data.poinames[key][i]
-		if type(k) == "table" then
-			print("", table.concat(k, ","), v)
-		else
-			print("", k, v)
+local poidebug = false
+if poidebug then
+	for key, value in pairs(data.poi) do
+		print(key, value, ">"..table.concat(data.poiargs[key]))
+		for i, v in ipairs(data.poiargs[key]) do
+			local k = data.poinames[key][i]
+			if type(k) == "table" then
+				print("", table.concat(k, ","), v)
+			else
+				print("", k, v)
+			end
 		end
 	end
 end

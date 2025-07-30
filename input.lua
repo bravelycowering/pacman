@@ -15,21 +15,21 @@ input.scale = 4
 input.deadspace = 25
 
 function input.keypressed(key)
-	if key == "left" or key == "a" then
-		input.direction = 1
-		input.keys.left = input.time
-	end
-	if key == "up" or key == "w" then
-		input.direction = 2
-		input.keys.up = input.time
-	end
 	if key == "right" or key == "d" then
-		input.direction = 3
+		input.direction = 0
 		input.keys.right = input.time
 	end
 	if key == "down" or key == "s" then
-		input.direction = 4
+		input.direction = 1
 		input.keys.down = input.time
+	end
+	if key == "left" or key == "a" then
+		input.direction = 2
+		input.keys.left = input.time
+	end
+	if key == "up" or key == "w" then
+		input.direction = 3
+		input.keys.up = input.time
 	end
 	if key == "return" or key == "z" then
 		input.keys.a = input.time
@@ -110,7 +110,7 @@ function input.update()
 					end
 					input.keys.up = nil
 					input.keys.down = nil
-					input.direction = 3
+					input.direction = 0
 				end
 				if angle > 45 and angle <= 135 then
 					input.keys.left = nil
@@ -119,7 +119,7 @@ function input.update()
 					if not input.keys.down then
 						input.keys.down = input.time
 					end
-					input.direction = 4
+					input.direction = 1
 				end
 				if angle > 135 or angle <= -135 then
 					if not input.keys.left then
@@ -128,7 +128,7 @@ function input.update()
 					input.keys.right = nil
 					input.keys.up = nil
 					input.keys.down = nil
-					input.direction = 1
+					input.direction = 2
 				end
 				if angle > -135 and angle <= -45 then
 					input.keys.left = nil
@@ -137,7 +137,7 @@ function input.update()
 						input.keys.up = input.time
 					end
 					input.keys.down = nil
-					input.direction = 2
+					input.direction = 3
 				end
 			else
 				input.keys.left = nil

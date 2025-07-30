@@ -1,7 +1,6 @@
 local graphics = require "graphics"
 local sounds = require "sounds"
 local data = require "data"
-local rng = require "rng"
 
 local mover = require "objects.mover"
 local new = require "objects.new"
@@ -24,7 +23,6 @@ function ghost:load(maze, poi)
 	self.exitx = 0
 	self.exity = 0
 	self.exitbelow = false
-	self.sp = 1
 	self.speed = 1
 	self.tunnelspeed = 0.5
 	self.frightspeed = 0.5
@@ -63,26 +61,26 @@ function ghost:update(maze)
 	if frightened then
 		self.fright = self.fright - 1
 	end
+	local speed = self.speed
 	if self.inghostbox or self.exitingghostbox then
-		self.sp = 0.5
+		speed = 0.5
 	else
 		if self.eyes then
-			self.sp = 2
+			speed = 2
 		elseif maze and maze:intunnel(self.mover.x, self.mover.y) then
-			self.sp = self.tunnelspeed
+			speed = self.tunnelspeed
 		elseif frightened then
-			self.sp = self.frightspeed
+			speed = self.frightspeed
 		else
-			self.sp = self.speed
 			if self.behavior == 1 and maze then
-				self.sp = self.sp + 0.0625 * maze:getcruiseelroy()
+				speed = speed + 0.0625 * maze:getcruiseelroy()
 			end
 		end
 	end
 	if not frightened then
 		self:settarget(maze)
 	end
-	if self.mover:move(self.sp, frightened) then
+	if self.mover:move(speed, frightened) then
 		self.frame = self.frame % 2 + 0.25
 	end
 end
@@ -197,25 +195,6 @@ function ghost:frighten(time)
 	if not self.eyes then
 		self.fright = time
 		self:turnaround()
-	end
-end
-
-function ghost:canmove(maze, direction, x, y)
-	local dx, dy = 0, 0
-	if direction == 1 then
-		dx = -self.sp
-	end
-	if direction == 2 then
-		dy = -self.sp
-	end
-	if direction == 3 then
-		dx = self.sp
-	end
-	if direction == 4 then
-		dy = self.sp
-	end
-	if not maze or maze:canmove(x, y, dx, dy) then
-		return true, dx, dy
 	end
 end
 

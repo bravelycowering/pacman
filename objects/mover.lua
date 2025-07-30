@@ -1,6 +1,3 @@
-local graphics = require "graphics"
-local sounds = require "sounds"
-local data = require "data"
 local rng = require "rng"
 
 local mover = {}
@@ -15,7 +12,6 @@ function mover:load(maze, x, y, direction)
 	self.targetx = 0
 	self.targety = 0
 	self.targeting = true
-	self.cornering = false
 end
 
 local function dxdy(direction, speed)
@@ -41,8 +37,9 @@ local function dist(x1, y1, x2, y2)
 end
 
 function mover:setdirection(direction)
-	if not checksolid(self.maze, math.floor(self.x / 8), math.floor(self.y / 8), direction) then
+	if self.lookdirection ~= direction and not checksolid(self.maze, math.floor(self.x / 8), math.floor(self.y / 8), direction) then
 		self.lookdirection = direction
+		self.direction = direction
 	end
 end
 
@@ -58,14 +55,12 @@ function mover:move(speed, random)
 	local x, y = self.x, self.y
 	local maze = self.maze
 	local dx, dy = dxdy(self.direction, speed)
-	local ldx, ldy = dxdy(self.lookdirection, speed)
 	local tx, ty = math.floor(x / 8), math.floor(y / 8)
-	local tcx, tcy = math.floor(x / 8 + 0.5), math.floor(y / 8 + 0.5)
+	local cx, cy = tx*8 + 4, ty*8 + 4
 	local nx, ny = x + dx, y + dy
 	local ntx, nty = math.floor(nx / 8), math.floor(ny / 8)
-	local ntcx, ntcy = math.floor(nx / 8 + 0.5), math.floor(ny / 8 + 0.5)
 	local changedtile = tx ~= ntx or ty ~= nty
-	local passedcenter = tcx ~= ntcx or tcy ~= ntcy
+	local passedcenter = (x >= cx and nx < cx) or (x <= cx and nx > cx) or (y >= cy and ny < cy) or (y <= cy and ny > cy)
 	if changedtile then
 		local opposite_direction = (self.lookdirection + 2) % 4
 		if random then
@@ -100,7 +95,6 @@ function mover:move(speed, random)
 	if passedcenter then
 		if self.lookdirection ~= self.direction then
 			self.direction = self.lookdirection
-			local cx, cy = ntx*8 + 4, nty*8 + 4
 			if dx ~= 0 then
 				-- snap to center of tile (this is inaccurate but idgaf)
 				nx = cx
@@ -114,10 +108,28 @@ function mover:move(speed, random)
 				ny = cy
 			end
 		end
+		if checksolid(maze, tx, ty, self.direction) then
+			self.x = cx
+			self.y = cy
+			return false
+		end
 	end
-	if self.cornering and self.direction ~= self.lookdirection then
-		nx = nx + ldx
-		ny = ny + ldy
+	if dx ~= 0 then
+		if ny > cy + speed then
+			ny = ny - speed
+		elseif ny < cy - speed then
+			ny = ny + speed
+		else
+			ny = cy
+		end
+	elseif dy ~= 0 then
+		if nx > cx + speed then
+			nx = nx - speed
+		elseif nx < cx - speed then
+			nx = nx + speed
+		else
+			nx = cx
+		end
 	end
 	self.x = nx
 	self.y = ny

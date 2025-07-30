@@ -134,12 +134,12 @@ end
 
 function maze:startmaze(skipintro, restart)
 	sounds.stop_all()
-	input.direction = 1
+	input.direction = 2
 	self.pausetimer = 0
 	self.deathtimer = 0
 	self.ghosts = {}
 	self.pacman = new(pacman)
-	self.pacman:load(self.pacmanx, self.pacmany)
+	self.pacman:load(self, self.pacmanx, self.pacmany)
 	self.pacman.speed = getclamped(maze.pacmanspeed, self.level)
 	self.pacman.frightspeed = getclamped(maze.pacmanfrightspeed, self.level)
 	self.scatter = 0
