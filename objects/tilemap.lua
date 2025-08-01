@@ -119,6 +119,7 @@ function tilemap:load(width, height, palette)
 			if id == 0 then
 				break
 			end
+---@diagnostic disable-next-line: param-type-mismatch
 			x, y, dat, pos = love.data.unpack("> I1 I1 s1", str, pos)
 			local poi = {
 				name = data.poi[id],
@@ -127,6 +128,7 @@ function tilemap:load(width, height, palette)
 				y = y * 8,
 			}
 			local format = ">"..table.concat(data.poiargs[id])
+---@diagnostic disable-next-line: param-type-mismatch
 			local datunpacked = {love.data.unpack(format, dat)}
 			for i = 1, #datunpacked - 1 do
 				local value = datunpacked[i]

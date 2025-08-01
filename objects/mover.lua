@@ -5,10 +5,9 @@ local mover = {}
 function mover:load(maze, x, y, direction)
 	self.lookdirection = direction
 	self.direction = direction
-	self.x = x
-	self.y = y
 	self.maze = maze -- mover needs access to the maze pretty much all of the time, so ill let this slide
 	-- mover having access to maze at all times also allows us to draw debug information if need be
+	self:setpos(x, y)
 	self.targetx = 0
 	self.targety = 0
 	self.targeting = true
@@ -48,13 +47,33 @@ function mover:settarget(x, y)
 	self.targety = math.floor(y / 8)
 end
 
+function mover:bounce(speed)
+	self.lookdirection = self.direction
+	local maze = self.maze
+	local x, y = self.x, self.y
+	local dx, dy = dxdy(self.direction, speed)
+	local nx, ny = x + dx, y + dy
+	local ntx, nty = math.floor(nx / 8), math.floor(ny / 8)
+	if checksolid(maze, ntx, nty, self.direction) then
+		self.direction = (self.direction + 2) % 4
+	end
+	self:setpos(nx, ny)
+end
+
+function mover:setpos(x, y)
+	local width, height = self.maze:getdimensions()
+	self.x = x % width
+	self.y = y % height
+end
+
 function mover:move(speed, random)
 	if self.direction%2 == self.lookdirection%2 then
 		self.direction = self.lookdirection
 	end
-	local x, y = self.x, self.y
 	local maze = self.maze
+	local x, y = self.x, self.y
 	local dx, dy = dxdy(self.direction, speed)
+	local ldx, ldy = dxdy(self.lookdirection, speed)
 	local tx, ty = math.floor(x / 8), math.floor(y / 8)
 	local cx, cy = tx*8 + 4, ty*8 + 4
 	local nx, ny = x + dx, y + dy
@@ -99,18 +118,17 @@ function mover:move(speed, random)
 				-- snap to center of tile (this is inaccurate but idgaf)
 				nx = cx
 				-- movement preservation optimization (unsure if accurate to pacman)
-				-- ny = ny + ldy - (nx - cx)
+				ny = ny + ldy - (nx - cx)
 			end
 			if dy ~= 0 then
 				-- movement preservation optimization (unsure if accurate to pacman)
-				-- nx = nx + ldx - (ny - cy)
+				nx = nx + ldx - (ny - cy)
 				-- snap to center of tile (this is inaccurate but idgaf)
 				ny = cy
 			end
 		end
 		if checksolid(maze, tx, ty, self.direction) then
-			self.x = cx
-			self.y = cy
+			self:setpos(cx, cy)
 			return false
 		end
 	end
@@ -131,13 +149,7 @@ function mover:move(speed, random)
 			nx = cx
 		end
 	end
-	self.x = nx
-	self.y = ny
-	if maze then
-		local width, height = maze:getdimensions()
-		self.x = self.x % width
-		self.y = self.y % height
-	end
+	self:setpos(nx, ny)
 	return true
 end
 

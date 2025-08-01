@@ -16,6 +16,7 @@ function freeplay:load()
 	self.LIVES = 3
 	self.LEVEL = 1
 	self.BONUSLIFE = 10000
+	self.CRTSHADER = false
 	self:drawchoices()
 end
 
@@ -30,6 +31,7 @@ function freeplay:drawchoices()
 		"LEVEL ; "..value(self.LEVEL),
 		"BONUS LIFE ; "..value(self.BONUSLIFE),
 		"256 KILLSCREEN ; "..value(self.KILLSCREEN),
+		"CRT SHADER ; "..value(self.CRTSHADER),
 	}
 	self.tiles = grid.new(28, 36, 64)
 	self.tiles:setstr(2, 2, "PAC;MAN\64FREEPLAY")
@@ -55,11 +57,6 @@ function freeplay:update()
 		end
 	end
 	if input.isPressed "left" then
-		if self.choiceindex == 5 then
-			playsound = true
-			self.KILLSCREEN = not self.KILLSCREEN
-			self:drawchoices()
-		end
 		if self.choiceindex == 2 then
 			if self.LIVES > 1 then
 				playsound = true
@@ -79,13 +76,18 @@ function freeplay:update()
 				self:drawchoices()
 			end
 		end
-	end
-	if input.isPressed "right" then
 		if self.choiceindex == 5 then
 			playsound = true
 			self.KILLSCREEN = not self.KILLSCREEN
 			self:drawchoices()
 		end
+		if self.choiceindex == 6 then
+			playsound = true
+			self.CRTSHADER = not self.CRTSHADER
+			self:drawchoices()
+		end
+	end
+	if input.isPressed "right" then
 		if self.choiceindex == 2 then
 			playsound = true
 			self.LIVES = self.LIVES + 1
@@ -101,6 +103,16 @@ function freeplay:update()
 			self.BONUSLIFE = self.BONUSLIFE + 2500
 			self:drawchoices()
 		end
+		if self.choiceindex == 5 then
+			playsound = true
+			self.KILLSCREEN = not self.KILLSCREEN
+			self:drawchoices()
+		end
+		if self.choiceindex == 6 then
+			playsound = true
+			self.CRTSHADER = not self.CRTSHADER
+			self:drawchoices()
+		end
 	end
 	if input.isPressed "a" or input.isPressed "left" or input.isPressed "right" then
 		if self.choiceindex == 1 then
@@ -111,6 +123,7 @@ function freeplay:update()
 				lives = self.LIVES,
 				level = self.LEVEL,
 				bonuslife = self.BONUSLIFE,
+				crtshader = self.CRTSHADER,
 			})
 			self:drawchoices()
 		end
@@ -131,11 +144,11 @@ function freeplay:draw()
 		if y == 4 + self.choiceindex * 2 then
 			graphics.setPalette(15)
 			if x == 1 then
-				graphics.draw(data.pacmananim[4][2], 12, y*8 - 4)
+				graphics.draw(data.pacmananim[2][2], 12, y*8 - 4)
 			end
 		else
 			graphics.setPalette(18)
-			if x == 1 and y%2 == 0 and y < #self.choices + 10 and y > self.choiceindex * 2 + 2 then
+			if x == 1 and y%2 == 0 and y < #self.choices + 12 and y > self.choiceindex * 2 + 2 then
 				graphics.draw(graphics.tile(164), 16, y*8)
 			end
 		end

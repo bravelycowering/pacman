@@ -45,18 +45,32 @@ function data.loadSprites()
 
 	data.ghostscore = quadColumn(4, 64, 192, 16, 16) -- 200, 400, 800, 1600
 
+	data.score = {
+		[0] = quad(64, 192, 8, 8),
+		[1] = quad(72, 192, 8, 8),
+		[2] = quad(64, 200, 8, 8),
+		[3] = quad(72, 200, 8, 8),
+		[4] = quad(64, 208, 8, 8),
+		[5] = quad(72, 208, 8, 8),
+		[6] = quad(64, 216, 8, 8),
+		[7] = quad(72, 216, 8, 8),
+		[8] = quad(64, 224, 8, 8),
+		[9] = quad(72, 224, 8, 8),
+		[16] = quad(64, 232, 8, 8),
+	}
+
 	data.pacmananim = {
-		quadStrip(4, 0, 192, 16, 16), -- left
-		quadStrip(4, 0, 208, 16, 16), -- up
-		quadStrip(4, 0, 224, 16, 16), -- right
-		quadStrip(4, 0, 240, 16, 16), -- down
+		quadStrip(4, 0, 192, 16, 16), -- right
+		quadStrip(4, 0, 208, 16, 16), -- down
+		quadStrip(4, 0, 224, 16, 16), -- left
+		quadStrip(4, 0, 240, 16, 16), -- up
 	}
 
 	data.pacmanbig = quadStrip(3, 0, 160, 32, 32)
 
 	data.pacmandie = concat(quadColumn(6, 96, 160, 16, 16), quadColumn(6, 112, 160, 16, 16))
 
-	data.mobilearrows = concat(quadStrip(2, 80, 240, 8, 8), quadStrip(2, 80, 248, 8, 8))
+	data.mobilearrows = concat(quadStrip(2, 64, 240, 8, 8), quadStrip(2, 64, 248, 8, 8))
 
 	data.unusedsprite = quad(80, 224, 16, 16)
 end
@@ -104,6 +118,7 @@ poi "pacman" (1, "subpos:I1")
 poi "ghost" (2, "subpos:I1 behavior:I1 palette:I1 direction:I1")
 poi "status" (3)
 poi "fruit" (4, "subpos:I1")
+poi "ghostbox" (5, "x2:I1 y2:I1")
 
 local poidebug = false
 if poidebug then
