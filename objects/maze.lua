@@ -7,6 +7,7 @@ local rom = require "rom"
 local tilemap = require "objects.tilemap"
 local pacman = require "objects.pacman"
 local ghost = require "objects.ghost"
+local fruit = require "objects.fruit"
 local new = require "objects.new"
 
 local canvas = love.graphics.newCanvas(data.width * 8, data.height * 8)
@@ -24,14 +25,15 @@ for index, value in ipairs(graphics.quadColumn(4, 32, 0, 20, 8, 52, 32)) do
 	maze.scorequads[#maze.scorequads+1] = value
 end
 
-maze.fruits = {224, 228, 232, 232, 240, 240, 244, 244, 248, 248, 236, 236, 252, 252, 252, 252, 252, 252, 252, 252}
-maze.fruitpals = {11, 12, 13, 13, 11, 11, 14, 14, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16}
+maze.fruittiles = { 224, 228, 232, 232, 240, 240, 244, 244, 248, 248, 236, 236, 252, 252, 252, 252, 252, 252, 252, 252 }
+maze.fruitpals = { 11, 12, 13, 13, 11, 11, 14, 14, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16 }
+maze.fruitbonus = { 100, 300, 500, 500, 700, 700, 1000, 1000, 2000, 2000, 3000, 3000, 5000 }
 maze.scatter = {
-	{7 * 60, 20 * 60, 7 * 60, 20 * 60, 5 * 60, 20 * 60, 5 * 60},
-	{7 * 60, 20 * 60, 7 * 60, 20 * 60, 5 * 60, 17 * 3600 + 13 * 60 + 14, 1},
-	{7 * 60, 20 * 60, 7 * 60, 20 * 60, 5 * 60, 17 * 3600 + 13 * 60 + 14, 1},
-	{7 * 60, 20 * 60, 7 * 60, 20 * 60, 5 * 60, 17 * 3600 + 13 * 60 + 14, 1},
-	{5 * 60, 20 * 60, 5 * 60, 20 * 60, 5 * 60, 17 * 3600 + 17 * 60 + 14, 1},
+	{ 7 * 60, 20 * 60, 7 * 60, 20 * 60, 5 * 60, 20 * 60, 5 * 60 },
+	{ 7 * 60, 20 * 60, 7 * 60, 20 * 60, 5 * 60, 17 * 3600 + 13 * 60 + 14, 1 },
+	{ 7 * 60, 20 * 60, 7 * 60, 20 * 60, 5 * 60, 17 * 3600 + 13 * 60 + 14, 1 },
+	{ 7 * 60, 20 * 60, 7 * 60, 20 * 60, 5 * 60, 17 * 3600 + 13 * 60 + 14, 1 },
+	{ 5 * 60, 20 * 60, 5 * 60, 20 * 60, 5 * 60, 17 * 3600 + 17 * 60 + 14, 1 },
 }
 maze.pacmanspeed = { 1, 1.125, 1.125, 1.125, 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.125 }
 maze.pacmanfrightspeed = { 1.125, 1.1875, 1.1875, 1.1875, 1.25 }
@@ -40,6 +42,7 @@ maze.ghostfrightspeed = { 0.625, 0.6875, 0.6875, 0.6875, 0.6875, 0.75 }
 maze.ghosttunnelspeed = { 0.5, 0.5625, 0.5625, 0.5625, 0.5625, 0.625 }
 maze.powertime = { 360, 300, 240, 180, 120, 300, 120, 120, 60, 300, 120, 60, 60, 180, 60, 60, 0, 60, 0 }
 maze.cruiseelroy = { 20/244, 30/244, 40/244, 40/244, 40/244, 50/244, 50/244, 50/244, 60/244, 60/244, 60/244, 80/244, 80/244, 80/244, 100/244, 100/244, 100/244, 100/244, 120/244 }
+maze.fruittriggers = { 174/244, 74/244 }
 maze.startdotcount = {
 	{ 0 },
 	{ 0 },
@@ -47,7 +50,10 @@ maze.startdotcount = {
 	{ 60, 50, 0 },
 }
 maze.restartdotcount = {
-	0, 7, 17, 32
+	{ 0 },
+	{ 7 },
+	{ 17 },
+	{ 92, 82, 32 }
 }
 maze.ids = {}
 maze.ids.dot = 164
@@ -72,11 +78,12 @@ function maze:load(tiles, settings)
 	self.lives = settings.lives
 	self.killscreen = settings.killscreen
 	self.bonuslife = settings.bonuslife
+	self.crtshader = settings.crtshader
 	self.highscore = 0
 	self.score = 0
 	self.pupblink = 0
-	self.readystr = ""
-	self.readypalstr = ""
+	self.statusstr = ""
+	self.statuspalstr = ""
 	self:loadmaze(tiles)
 	self:startmaze()
 end
@@ -84,76 +91,64 @@ end
 function maze:loadmaze(tiles)
 	-- create tiles
 	self.tilemap = new(tilemap)
-	self.tilemap:load(tiles, 17)
+	self.tilemap:load(tiles)
 	self.mazelayout = tiles
 	self.dots = 0
+	self.fruittrigger = 1
 	self.pacmanx = 0
 	self.pacmany = 0
-	self.fruitx = 0
-	self.fruity = 0
-	self.readyx = 0
-	self.readyy = 0
-	self.ghostboxx = 0
-	self.ghostboxy = 0
+	self.statusx = 0
+	self.statusy = 0
+	self.ghostbox = {
+		x1 = 0,
+		y1 = 0,
+		x2 = 0,
+		y2 = 0,
+	}
 	self.dotblink = 0
 	self.ghostcombo = 0
-	self.startghost = {}
+	self.objpois = {}
+	self.fruitpositions = {}
 	-- levelstats
 	self.scattertimes = getclamped(maze.scatter, self.level)
 	self.power = getclamped(maze.powertime, self.level)
+	-- load from pois
+	for poi in self.tilemap:poiter() do
+		if poi.name == "pacman" then
+			self.pacmanx = poi.x + 4
+			self.pacmany = poi.y + 4
+		end
+		if poi.name == "status" then
+			self.statusx = math.floor(poi.x / 8)
+			self.statusy = math.floor(poi.y / 8)
+		end
+		if poi.name == "ghost" then
+			self.objpois[#self.objpois+1] = poi
+		end
+		if poi.name == "ghostbox" then
+			self.ghostbox.x1 = poi.x
+			self.ghostbox.y1 = poi.y
+			self.ghostbox.x2 = poi.x2 * 8
+			self.ghostbox.y2 = poi.y2 * 8
+		end
+		if poi.name == "fruit" then
+			self.fruitpositions[#self.fruitpositions+1] = {
+				x = poi.x + 4,
+				y = poi.y + 4,
+			}
+		end
+	end
 	-- replace placeholder tiles
 	for x, y, tile in self.tilemap:xypairs() do
-		if tile >= maze.ids.start then
-			self.tilemap:set(x, y, 64)
-			local modifier = self.tilemap:get(x + 1, y)
-			if tile == maze.ids.start then
-				local xoff = 4
-				if modifier == 0 then
-					xoff = 8
-				end
-				self.tilemap:set(x + 1, y, 64)
-				self.pacmanx = x * 8 + xoff
-				self.pacmany = y * 8 + 4
-			end
-			if tile >= maze.ids.ghost and tile < maze.ids.ghost + maze.ids.ghosts then
-				local xoff = 4
-				if modifier == 0 or modifier == 2 then
-					xoff = 8
-				end
-				self.startghost[#self.startghost+1] = {
-					x = x * 8 + xoff,
-					y = y * 8 + 4,
-					type = tile - maze.ids.ghost + 1,
-					inghostbox = modifier == 1 or modifier == 2
-				}
-				self.tilemap:set(x + 1, y, 64)
-			end
-			if tile == maze.ids.fruit then
-				if modifier == 0 then
-					self.fruitx = x * 8 + 8
-					self.fruity = y * 8 + 4
-				else
-					self.fruitx = x * 8 + 4
-					self.fruity = y * 8 + 4
-				end
-				self.tilemap:set(x + 1, y, 64)
-				self.readyx = x
-				self.readyy = y
-			end
-			if tile == maze.ids.ghostbox then
-				self.ghostboxx = x
-				self.ghostboxy = y
-				self.tilemap:set(x, y, 160, nil, 2)
-				self.tilemap:set(x + 1, y, 160, nil, 2)
-			end
-		else
-			if tile == maze.ids.dot or tile == maze.ids.powerdot then
-				self.dots = self.dots + 1
-			end
+		if tile == maze.ids.dot or tile == maze.ids.powerdot then
+			self.dots = self.dots + 1
+		end
+		if tile == 160 then
+			self.tilemap:set(x, y, 160, nil, 2)
 		end
 	end
 	self.totaldots = self.dots
-	self.tilemap:setstr(9, 0, "HIGH\64SCORE", "header", 16)
+	self.tilemap:setstr(9, 0, "HIGH@SCORE", "header", 16)
 	self.tilemap:set(5, 1, 0, "header", 16)
 	self.tilemap:set(15, 1, 0, "header", 16)
 	self:drawfruit()
@@ -162,31 +157,36 @@ end
 
 function maze:startmaze(skipintro, restart)
 	sounds.stop_all()
-	input.direction = 1
+	input.direction = 2
 	self.pausetimer = 0
 	self.deathtimer = 0
+	self.wintimer = 0
 	self.ghosts = {}
+	self.fruits = {}
+	self.pointparticles = {}
 	self.pacman = new(pacman)
-	self.pacman:load()
-	self.pacman.x = self.pacmanx
-	self.pacman.y = self.pacmany
+	self.pacman:load(self, self.pacmanx, self.pacmany)
 	self.pacman.speed = getclamped(maze.pacmanspeed, self.level)
 	self.pacman.frightspeed = getclamped(maze.pacmanfrightspeed, self.level)
 	self.scatter = 0
 	self.scattertime = 1
-	for index, value in ipairs(self.startghost) do
-		local g = new(ghost)
-		g:load(value.type, value.inghostbox)
-		g.x = value.x
-		g.y = value.y
-		g.speed = getclamped(maze.ghostspeed, self.level)
-		g.tunnelspeed = getclamped(maze.ghosttunnelspeed, self.level)
-		g.frightspeed = getclamped(maze.ghostfrightspeed, self.level)
-		g.dotcount = getclamped(getclamped(maze.startdotcount, value.type), self.level)
-		self.ghosts[index] = g
+	for index, poi in ipairs(self.objpois) do
+		if poi.name == "ghost" then
+			local g = new(ghost)
+			g:load(self, poi)
+			g.speed = getclamped(maze.ghostspeed, self.level)
+			g.tunnelspeed = getclamped(maze.ghosttunnelspeed, self.level)
+			g.frightspeed = getclamped(maze.ghostfrightspeed, self.level)
+			if restart then
+				g.dotcount = getclamped(getclamped(maze.restartdotcount, g.behavior), self.level)
+			else
+				g.dotcount = getclamped(getclamped(maze.startdotcount, g.behavior), self.level)
+			end
+			self.ghosts[#self.ghosts+1] = g
+		end
 	end
-	self.readystr, self.readypalstr = self.tilemap:getstr(self.readyx - 2, self.readyy, 6)
-	self.tilemap:setstr(self.readyx - 2, self.readyy, "READY[", nil, 15)
+	self.statusstr, self.statuspalstr = self.tilemap:getstr(self.statusx, self.statusy, 8)
+	self.tilemap:setstr(self.statusx, self.statusy, "@@READY[@@", nil, 15)
 	if skipintro then
 		self.starttimer = 126
 		self:drawfruit()
@@ -209,25 +209,23 @@ function maze:getcruiseelroy()
 	end
 end
 
-function maze:shouldexitghostbox(behavior)
-	return true
-end
-
 function maze:getpacman(x, y)
-	return self.pacman.x, self.pacman.y, self.pacman.direction
+	local px, py = self.pacman:getpos()
+	return px, py, self.pacman:getdirection()
 end
 
 function maze:getghost(t, x, y)
 	local nearest = math.huge
 	local gx, gy, gdir = love.math.random(0, self.tilemap.width * 8), love.math.random(0, self.tilemap.height * 8), love.math.random(1, 4)
-	for index, value in ipairs(self.ghosts) do
-		if value.behavior == t then
-			local dist = math.sqrt((x - value.x)^2 + (y - value.y)^2)
+	for index, g in ipairs(self.ghosts) do
+		if g.behavior == t then
+			local _x, _y = g:getpos()
+			local dist = math.sqrt((x - _x)^2 + (y - _y)^2)
 			if dist < nearest then
 				nearest = dist
-				gx = value.x
-				gy = value.y
-				gdir = value.direction
+				gx = _x
+				gy = _y
+				gdir = g:getdirection()
 			end
 		end
 	end
@@ -242,14 +240,15 @@ function maze:getscatter()
 	return self.scatter%2 == 1
 end
 
-function maze:getghostbox(x, y, below)
-	local gbx = self.ghostboxx * 8 + 8
-	local gby = self.ghostboxy * 8 + 4
-	if y < gby and not below then
-		return gbx, gby + 8
-	else
-		return gbx, gby - 8
-	end
+function maze:getghostbox(x, y)
+	local gbx = (self.ghostbox.x1 + self.ghostbox.x2) / 2
+	local gby = (self.ghostbox.y1 + self.ghostbox.y2) / 2
+	return gbx, gby, self.ghostbox
+end
+
+function maze:inghostbox(x, y)
+	local ghostbox = self.ghostbox
+	return x > ghostbox.x1 and x < ghostbox.x2 and y > ghostbox.y1 and y < ghostbox.y2
 end
 
 function maze:intunnel(x, y)
@@ -294,26 +293,26 @@ function maze:drawfruit()
 		level = level % 256 -- enable the kill screen
 	end
 	if level > 7 then
-		if level > #maze.fruits then
-			level = #maze.fruits
+		if level > #maze.fruittiles then
+			level = #maze.fruittiles
 		end
 		for i = 1, 7 do
-			self.tilemap:set(11 + i * 2, 0, maze.fruits[level], "footer", maze.fruitpals[level])
-			self.tilemap:set(10 + i * 2, 0, maze.fruits[level] + 1, "footer", maze.fruitpals[level])
-			self.tilemap:set(11 + i * 2, 1, maze.fruits[level] + 2, "footer", maze.fruitpals[level])
-			self.tilemap:set(10 + i * 2, 1, maze.fruits[level] + 3, "footer", maze.fruitpals[level])
+			self.tilemap:set(11 + i * 2, 0, maze.fruittiles[level], "footer", maze.fruitpals[level])
+			self.tilemap:set(10 + i * 2, 0, maze.fruittiles[level] + 1, "footer", maze.fruitpals[level])
+			self.tilemap:set(11 + i * 2, 1, maze.fruittiles[level] + 2, "footer", maze.fruitpals[level])
+			self.tilemap:set(10 + i * 2, 1, maze.fruittiles[level] + 3, "footer", maze.fruitpals[level])
 			level = level - 1
 		end
 	else
 		local i = 0
 		repeat
 			i = i + 1
-			local tile = maze.fruits[i]
+			local tile = maze.fruittiles[i]
 			local pal = maze.fruitpals[i]
 			if tile == nil then
 				local offset = i * 2 + 2148
 				tile = (string.byte(rom, offset))%64 -- failsafe for the kill screen
-				maze.fruits[i] = tile
+				maze.fruittiles[i] = tile
 				pal = string.byte(rom, offset + 1)%19 -- failsafe for the kill screen
 				maze.fruitpals[i] = pal
 			end
@@ -343,16 +342,29 @@ function maze:addscore(amt)
 	self.score = self.score + amt
 end
 
-function maze:collisioncheck(ptx, pty, value)
-	local tx, ty = math.floor(value.x/8), math.floor(value.y/8)
+function maze:ghostcollisioncheck(ptx, pty, g)
+	local tx, ty = g:gettilepos()
 	if tx == ptx and ty == pty then
-		if value.fright > 0 then
-			self.ghostcombo = math.min(self.ghostcombo + 1, 4)
-			value:eaten(self.ghostcombo, self:getghostbox(value.x, value.y, true))
+		if g.fright > 0 then
+			self.ghostcombo = self.ghostcombo + 1
+			local gx, gy = g:getpos()
+			g:eaten()
 			self.pausetimer = 60
-			self.hidepacman = true
-			self:addscore(2^(self.ghostcombo) * 100)
-		elseif not value.eyes and not value.inghostbox and not value.exitingghostbox and not value.eatenpindex then
+			self.effectpause = true
+			local bonus = 2^(self.ghostcombo) * 100
+			local particle = {
+				x = gx,
+				y = gy,
+				palette = 3,
+				text = tostring(bonus),
+				time = 0,
+			}
+			if bonus == 1600 then
+				particle.text = "@00"
+			end
+			self.pointparticles[#self.pointparticles+1] = particle
+			self:addscore(bonus)
+		elseif not g.eyes and not g.inghostbox and not g.exitingghostbox and not g.iseaten then
 			if not self.pacman.dead then
 				sounds.stop_all()
 				self.pausetimer = 90
@@ -375,15 +387,24 @@ function maze:update()
 	if self.paused then
 		return
 	end
-	if self.starttimer <= 0 then
+	self.wintimer = self.wintimer - 1
+	if self.wintimer == 112 then
+		self.ghosts = {}
+	end
+	if self.wintimer == 0 then
+		self.level = self.level + 1
+		self:loadmaze(self.mazelayout)
+		self:startmaze(true)
+	end
+	if self.starttimer <= 0 and self.wintimer <= 0 then
 		if self.starttimer == 0 then
-			self.tilemap:setstr(self.readyx - 2, self.readyy, self.readystr, nil, self.readypalstr)
+			self.tilemap:setstr(self.statusx, self.statusy, self.statusstr, nil, self.statuspalstr)
 		end
 		local turnaround = false
 		if self.pausetimer > 0 then
 			self.pausetimer = self.pausetimer - 1
 			if self.pausetimer == 0 then
-				self.hidepacman = false
+				self.effectpause = false
 			end
 		else
 			self.deathtimer = self.deathtimer - 1
@@ -393,7 +414,7 @@ function maze:update()
 					self:startmaze(true, true)
 					return
 				else
-					self.tilemap:setstr(self.readyx - 4, self.readyy, "GAME\64\64OVER", nil, 1)
+					self.tilemap:setstr(self.statusx, self.statusy, "GAME@@OVER", nil, 1)
 				end
 			end
 			if self.scattertime > 0 then
@@ -415,7 +436,7 @@ function maze:update()
 				self.ghosts = {}
 			end
 		end
-		local ptx, pty = math.floor(self.pacman.x/8), math.floor(self.pacman.y/8)
+		local ptx, pty = self.pacman:gettilepos()
 		local anyeyes = false
 		local anyfright = false
 		for index, value in ipairs(self.ghosts) do
@@ -425,16 +446,71 @@ function maze:update()
 				anyfright = true
 			else
 				if turnaround then
-					value.direction = (value.direction + 1) % 4 + 1
+					value:turnaround()
 				end
 			end
-			if self.pausetimer <= 0 and self:collisioncheck(ptx, pty, value) then return end
-			if self.pausetimer <= 0 or value.eyes then
+			if self.pausetimer <= 0 and self:ghostcollisioncheck(ptx, pty, value) then return end
+			if self.pausetimer <= 0 or (value.eyes and self.effectpause) then
 				value:update(self)
 			end
-			if self.pausetimer <= 0 and self:collisioncheck(ptx, pty, value) then return end
+			if self.pausetimer <= 0 and self:ghostcollisioncheck(ptx, pty, value) then return end
 		end
 		if not self.pacman.dead and self.pausetimer <= 0 then
+			do -- point particle group handling
+				local i = 1
+				local del = 0
+				local len = #self.pointparticles
+				while i <= len do
+					if i + del <= #self.pointparticles then
+						local particle = self.pointparticles[i + del]
+						self.pointparticles[i] = particle
+						particle.time = particle.time - 1
+						if particle.time <= 0 then
+							del = del + 1
+						else
+							i = i + 1
+						end
+					else
+						self.pointparticles[i] = nil
+						i = i + 1
+					end
+				end
+			end
+			do -- fruit group handling
+				local i = 1
+				local del = 0
+				local len = #self.fruits
+				while i <= len do
+					if i + del <= #self.fruits then
+						local f = self.fruits[i + del]
+						local tx, ty = f:gettilepos()
+						local fx, fy = f:getpos()
+						self.fruits[i] = f
+						f:update()
+						if (ptx == tx or ptx + 1 == tx) and pty == ty then
+							f:eaten()
+							local bonus = getclamped(maze.fruitbonus, self.level)
+							local particle = {
+								x = fx,
+								y = fy,
+								palette = 2,
+								text = tostring(bonus),
+								time = 120,
+							}
+							self:addscore(bonus)
+							self.pointparticles[#self.pointparticles+1] = particle
+						end
+						if f.time <= 0 then
+							del = del + 1
+						else
+							i = i + 1
+						end
+					else
+						self.fruits[i] = nil
+						i = i + 1
+					end
+				end
+			end
 			if anyeyes then
 				sounds.bgm("eyes")
 			elseif anyfright then
@@ -464,7 +540,7 @@ function maze:update()
 		self.tilemap:setstr(3, 0, "1UP", "header", 16)
 	elseif self.pupblink == 30 then
 		self.pupblink = 0
-		self.tilemap:setstr(3, 0, "\64\64\64", "header")
+		self.tilemap:setstr(3, 0, "@@@", "header")
 	end
 	local scorestr = tostring(self.score)
 	self.tilemap:setstr(7 - #scorestr, 1, scorestr, "header", 16, -48)
@@ -475,13 +551,24 @@ function maze:update()
 	self.tilemap:setstr(17 - #highscorestr, 1, highscorestr, "header", 16, -48)
 end
 
+function maze:spawnfruit()
+	self.fruits = {}
+	for index, value in ipairs(self.fruitpositions) do
+		local f = new(fruit)
+		local tile = getclamped(maze.fruittiles, self.level)
+		local pal = getclamped(maze.fruitpals, self.level)
+		f:load(self, value.x, value.y, tile, pal)
+		self.fruits[#self.fruits+1] = f
+	end
+end
+
 function maze:eat(tilex, tiley)
 	local tile = self.tilemap:get(tilex, tiley)
 	if tile == maze.ids.dot or tile == maze.ids.powerdot then
 		local priorityindex = -1
 		local prioritytype = 256
 		for index, value in ipairs(self.ghosts) do
-			if value.inghostbox and value.behavior < prioritytype then
+			if value.inghostbox and not value.exitingghostbox and value.behavior < prioritytype then
 				priorityindex = index
 				prioritytype = value.behavior
 			end
@@ -499,16 +586,27 @@ function maze:eat(tilex, tiley)
 			self:addscore(10)
 		end
 		self.tilemap:set(tilex, tiley, 64)
+		if self.fruittrigger <= #maze.fruittriggers then
+			if self.dots/self.totaldots > maze.fruittriggers[self.fruittrigger] and (self.dots-1)/self.totaldots <= maze.fruittriggers[self.fruittrigger] then
+				print("fruit trigger:", self.fruittrigger)
+				self:spawnfruit()
+				self.fruittrigger = self.fruittrigger + 1
+			end
+		end
 		self.dots = self.dots - 1
 		if self.dots == 0 then
 			sounds.stop_all()
-			self.level = self.level + 1
-			self.ghosts = {}
-			self:loadmaze(self.mazelayout)
-			self:startmaze(true)
+			self.pausetimer = 1
+			self.wintimer = 240
+			self.pacman.frame = 0
 		end
 		return true
 	end
+end
+
+function maze:getsolid(tilex, tiley)
+	local tile = self.tilemap:get(tilex%self.tilemap.width, tiley%self.tilemap.height)
+	return tile >= 128 and tile <= 162
 end
 
 function maze:canmove(x, y, dx, dy)
@@ -528,8 +626,7 @@ function maze:canmove(x, y, dx, dy)
 	else
 		tiley = math.floor((y + dy - 4)/8 + 0.5)
 	end
-	local tile = self.tilemap:get(tilex%self.tilemap.width, tiley%self.tilemap.height)
-	return tile < 128 or tile > 162
+	return not self:getsolid(tilex, tiley)
 end
 
 local crtshader = love.graphics.newShader("crt.glsl")
@@ -540,21 +637,53 @@ crtshader:send("featheropacity", 0.25)
 crtshader:send("dimensions", {canvas:getDimensions()})
 
 function maze:draw()
+	if self.wintimer < 15 and self.wintimer > 0 then
+		return
+	end
 	love.graphics.setCanvas(canvas)
 	graphics.enableShader()
 	graphics.setOpaque(true)
 	love.graphics.translate(0, 16)
+	local winflash = false
+	if self.wintimer <= 112 and self.wintimer > 0 then
+		winflash = self.wintimer % 24 <= 12
+		if winflash then
+			graphics.setPalette(18)
+		end
+	end
+	-- draw tiles
 	for x, y, tile, palette in self.tilemap:xypairs() do
 		if tile ~= maze.ids.powerdot or self.dotblink < 11 then
-			graphics.setPalette(palette)
+			if not winflash then
+				graphics.setPalette(palette)
+			end
 			graphics.draw(graphics.tile(tile), x * 8, y * 8)
 		else
 			graphics.draw(graphics.tile(64), x * 8, y * 8)
 		end
 	end
 	graphics.setOpaque(false)
+	-- draw score particles
+	for index, particle in ipairs(self.pointparticles) do
+		local x, y = particle.x - math.ceil(#particle.text * 5 / 2), particle.y - 4
+		for i = 1, #particle.text do
+			local quadno = particle.text:byte(i) - 48
+			graphics.setPalette(particle.palette)
+			graphics.draw(data.score[quadno], x, y)
+			if quadno == 16 then
+				x = x + 6
+			else
+				x = x + 5
+			end
+		end
+	end
+	-- draw fruit
+	for index, value in ipairs(self.fruits) do
+		value:draw()
+	end
+	-- draw sprites
 	if self.starttimer <= 127 then
-		if not self.hidepacman then
+		if not self.effectpause then
 			self.pacman:draw(self)
 		end
 		for index, value in ipairs(self.ghosts) do
@@ -568,7 +697,11 @@ function maze:draw()
 	self.tilemap:draw("footer")
 	love.graphics.translate(0, -data.height * 8 + 16)
 	love.graphics.setCanvas()
-	love.graphics.setShader(crtshader)
+	if self.crtshader then
+		love.graphics.setShader(crtshader)
+	else
+		love.graphics.setShader()
+	end
 	-- draw canvas centered
 	local width, height = canvas:getDimensions()
 	local lgw, lgh = love.graphics.getDimensions()

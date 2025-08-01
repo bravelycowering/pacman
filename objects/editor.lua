@@ -44,7 +44,7 @@ function editor:draw()
 	love.graphics.rectangle("fill", self.tilex*8, self.tiley*8, 8, 8)
 	love.graphics.setColor(1, 1, 1)
 	graphics.draw(graphics.tile(self.brush), self.tilex*8, self.tiley*8)
-	love.graphics.print(self.brush, self.tilex*8, self.tiley*8 + 9)
+	love.graphics.print(self.brush.." ("..self.tilex..", "..self.tiley..")", self.tilex*8, self.tiley*8 + 9)
 end
 
 return editor
