@@ -34,19 +34,12 @@ local input = require "input"
 
 local new = require "objects.new"
 
-local freeplay = require "objects.freeplay"
-
-function love.load(args)
+function love.load()
 	if imgui then
 		imgui.love.Init()
 	end
-	if args[1] == "editor" then
-		State = new(require "objects.editor")
-		State:load(love.filesystem.read("assets/maze.bin"))
-	else
-		State = new(freeplay)
-		State:load(has_imgui)
-	end
+	State = new(require "objects.freeplay")
+	State:load(has_imgui)
 end
 
 function love.keypressed(key)
