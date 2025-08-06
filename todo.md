@@ -9,6 +9,7 @@
 - intermissions do not exist
 - eating more than once ghost in a single unpaused frame causes the scores to overlap each other
 - tunnel is inaccurate, theres 16 pixels of padding on all sides
+- berry collision range is bigger
 
 ### funsies
 - better mobile-friendly menu
