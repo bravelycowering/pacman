@@ -7,7 +7,7 @@ local l = ghost.load
 
 local behaviors = {}
 local palettes = {}
-local loads = 0
+local level = 0
 
 local behaviortemplate = [[
 	local self, maze, input, new, ghost = ...
@@ -51,7 +51,7 @@ local function generatebehavior(b)
 		:gsub("%$scattery", love.math.random())
 		:gsub("%$targetoffx", love.math.random(1, 8) * 8 * love.math.random(-1, 1))
 		:gsub("%$targetoffy", love.math.random(1, 8) * 8 * love.math.random(-1, 1))
-		:gsub("%$special", ((love.math.random(1, math.ceil(math.max(1, 4 - loads / 2))) == 1 or b == 1) and loads > 2) and specials[spindex] or "")
+		:gsub("%$special", ((love.math.random(1, math.ceil(math.max(1, 5 - level / 2))) == 1 or b == 1) and level > 2) and specials[spindex] or "")
 	local f, err = loadstring(str, "randombehavior")
 	if err then
 		error(err)
@@ -62,7 +62,7 @@ end
 ---@diagnostic disable-next-line: duplicate-set-field
 function ghost:load(m, poi)
 	l(self, m, poi)
-	if loads > 1 then
+	if level > 1 then
 		if not behaviors[self.behavior] then
 			behaviors[self.behavior] = generatebehavior(self.behavior)
 			local b = love.math.random(1, 17)
@@ -79,15 +79,15 @@ local lm = maze.loadmaze
 ---@diagnostic disable-next-line: duplicate-set-field
 function maze:loadmaze(tiles)
 	lm(self, tiles)
+	level = self.level
 	behaviors = {}
 	palettes = {}
-	loads = loads + 1
 end
 
 local gt = ghost.gettarget
 ---@diagnostic disable-next-line: duplicate-set-field
 function ghost:gettarget(m)
-	if loads > 1 then
+	if level > 1 then
 		return behaviors[self.behavior](self, m, input, new, ghost)
 	else
 		return gt(self, m)

@@ -2,7 +2,6 @@ local graphics = require "graphics"
 local sounds = require "sounds"
 local input = require "input"
 local data = require "data"
-local rom = require "rom"
 
 local tilemap = require "objects.tilemap"
 local pacman = require "objects.pacman"
@@ -79,7 +78,8 @@ function maze:load(tiles, settings)
 	self.killscreen = settings.killscreen or false
 	self.bonuslife = settings.bonuslife or 10000
 	self.crtshader = settings.crtshader or false
-	self.highscore = 0
+	self.testmode = settings.testmode or false
+	self.highscore = settings.highscore or 0
 	self.score = 0
 	self.pupblink = 0
 	self.statusstr = ""
@@ -149,9 +149,13 @@ function maze:loadmaze(tiles)
 		end
 	end
 	self.totaldots = self.dots
-	self.tilemap:setstr(9, 0, "HIGH@SCORE", "header", 16)
 	self.tilemap:set(5, 1, 0, "header", 16)
-	self.tilemap:set(15, 1, 0, "header", 16)
+	if self.testmode then
+		self.tilemap:setstr(9, 0, "TEST@@MODE", "header", 0)
+	else
+		self.tilemap:setstr(9, 0, "HIGH@SCORE", "header", 16)
+		self.tilemap:set(15, 1, 0, "header", 16)
+	end
 	self:drawfruit()
 	self:drawlives()
 end
@@ -323,10 +327,9 @@ function maze:drawfruit()
 			local tile = maze.fruittiles[i]
 			local pal = maze.fruitpals[i]
 			if tile == nil then
-				local offset = i * 2 + 2148
-				tile = (string.byte(rom, offset))%64 -- failsafe for the kill screen
+				tile = math.random(0, 255)%64 -- failsafe for the kill screen
 				maze.fruittiles[i] = tile
-				pal = string.byte(rom, offset + 1)%19 -- failsafe for the kill screen
+				pal = math.random(0, 255)%19 -- failsafe for the kill screen
 				maze.fruitpals[i] = pal
 			end
 			self.tilemap:set(right + 1 - i * 2, 0, tile, "footer", pal)
@@ -394,9 +397,9 @@ function maze:setpaused(paused)
 	end
 	self.paused = paused
 	if self.paused then
-		sounds.pause_bgm()
+		sounds.pause()
 	else
-		sounds.unpause_bgm()
+		sounds.unpause()
 	end
 end
 
@@ -568,11 +571,13 @@ function maze:updategame()
 	end
 	local scorestr = tostring(self.score)
 	self.tilemap:setstr(7 - #scorestr, 1, scorestr, "header", 16, -48)
-	if self.score > self.highscore then
-		self.highscore = self.score
+	if not self.testmode then
+		if self.score > self.highscore then
+			self.highscore = self.score
+		end
+		local highscorestr = tostring(self.highscore)
+		self.tilemap:setstr(17 - #highscorestr, 1, highscorestr, "header", 16, -48)
 	end
-	local highscorestr = tostring(self.highscore)
-	self.tilemap:setstr(17 - #highscorestr, 1, highscorestr, "header", 16, -48)
 	self:positioncamera()
 end
 

@@ -1,4 +1,5 @@
 local graphics = require "graphics"
+local sounds = require "sounds"
 local input = require "input"
 local data = require "data"
 local maze = require "objects.maze"
@@ -36,7 +37,7 @@ function editor:update()
 	if input.isPressed "escape" then
 		self.maze = false
 		self.fullscreen = false
-		love.audio.stop()
+		sounds.stop_all()
 	end
 	if self.fullscreen then
 		self.maze:updategame()
@@ -132,33 +133,47 @@ local function getUV(quad)
 	return x/sw, y/sh, (x+w)/sw, (y+h)/sh
 end
 
-local function tileButton(tile, id)
+local function tileButton(tile, id, size)
+	size = size or 24
 	if not id then
 		id = tostring(tile)
 	end
 	local u1, v1, u2, v2 = getUV(graphics.tile(tile))
 	imgui.PushStyleVar_Vec2(imgui.ImGuiStyleVar_FramePadding, {1, 1})
-	local clicked = imgui.ImageButton(id, imgui.love.TextureRef(graphics.texture), {24, 24}, {u1, v1}, {u2, v2})
+	local clicked = imgui.ImageButton(id, imgui.love.TextureRef(graphics.texture), {size, size}, {u1, v1}, {u2, v2})
 	imgui.PopStyleVar()
 	return clicked
 end
 
 local function tileWidget(current, label)
-	if tileButton(current, "current") then
+	local n = current
+	if tileButton(current, "current", 32) then
 		imgui.OpenPopup_Str("tile_selector")
 	end
 	if label then
 		imgui.SameLine()
+		imgui.BeginGroup()
+		imgui.Spacing()
+		imgui.Spacing()
 		imgui.Text(label)
+		imgui.EndGroup()
 	end
 	if imgui.BeginPopup("tile_selector") then
 		imgui.PushStyleVar_Vec2(imgui.ImGuiStyleVar_ItemSpacing, {0, 0})
 		for y = 0, 15 do
 			for x = 0, 15 do
 				local i = x + y * 16
-				if tileButton(i, nil) then
+				if i == current then
+					imgui.PushStyleColor_Vec4(imgui.ImGuiCol_Button, {1, 1, 1, 1})
+					imgui.PushStyleColor_Vec4(imgui.ImGuiCol_ButtonHovered, {1, 1, 1, 1})
+					imgui.PushStyleColor_Vec4(imgui.ImGuiCol_ButtonActive, {1, 1, 1, 1})
+				end
+				if tileButton(i, nil, 16) then
 					imgui.CloseCurrentPopup()
-					current = i
+					n = i
+				end
+				if i == current then
+					imgui.PopStyleColor(3)
 				end
 				if x ~= 15 then
 					imgui.SameLine()
@@ -168,7 +183,7 @@ local function tileWidget(current, label)
 		imgui.PopStyleVar()
 		imgui.EndPopup()
 	end
-	return current
+	return n
 end
 
 local function inputInt(label, current, step, max, min, ...)
@@ -568,7 +583,7 @@ function editor:gui()
 	imgui.SetNextWindowPos({100, 100}, imgui.ImGuiCond_FirstUseEver)
 	imgui.SetNextWindowSizeConstraints({100, 100}, {math.huge, math.huge})
 	imgui.Begin("Maze Information")
-	self.brush = tileWidget(self.brush, "current brush")
+	self.brush = tileWidget(self.brush, "current brush ("..self.brush..")")
 	imgui.SeparatorText("Resize")
 	prop_width = inputInt("width", prop_width or self.tilemap.width, 1, 255)
 	prop_height = inputInt("height", prop_height or self.tilemap.height, 1, 255)
@@ -591,9 +606,10 @@ function editor:gui()
 		self.maze = new(maze)
 		self.maze:load(self.tilemap:save(), {
 			lives = self.fullscreen and 5 or math.huge,
+			testmode = true,
 		})
 		if not self.fullscreen then
-			love.audio.stop()
+			sounds.stop_all()
 			self.maze.starttimer = 127
 		end
 		imgui.SetNextWindowFocus()

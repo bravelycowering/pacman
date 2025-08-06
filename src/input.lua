@@ -24,19 +24,15 @@ end
 function input.keypressed(key)
 	input.keys["kb-"..key] = input.time
 	if key == "right" or key == "d" then
-		input.direction = 0
 		input.keys.right = input.time
 	end
 	if key == "down" or key == "s" then
-		input.direction = 1
 		input.keys.down = input.time
 	end
 	if key == "left" or key == "a" then
-		input.direction = 2
 		input.keys.left = input.time
 	end
 	if key == "up" or key == "w" then
-		input.direction = 3
 		input.keys.up = input.time
 	end
 	if key == "return" or key == "z" then
@@ -103,9 +99,6 @@ end
 
 function input.mousepressed(button)
 	input.keys[button] = input.time
-	if input.showjoystick and input.touchcontrols then
-		input.x, input.y = love.mouse.getPosition()
-	end
 end
 
 function input.mousereleased(button)
@@ -118,12 +111,27 @@ function input.mousereleased(button)
 	end
 end
 
-function input.update()
-	input.wheeldx = 0
-	input.wheeldy = 0
-	input.mousedx = 0
-	input.mousedy = 0
-	input.time = input.time + 1
+function input.touchpressed(id, x, y)
+	input.touchcontrols = true
+	if input.showjoystick and input.touchcontrols then
+		input.x, input.y = x, y
+	end
+end
+
+local function pickmax(tbl, size)
+	local max = 0
+	local maxval = -math.huge
+	for i = 1, size do
+		local v = tbl[i]
+		if type(v) == "number" and v > maxval then
+			maxval = v
+			max = i
+		end
+	end
+	return max
+end
+
+function input.preupdate()
 	if input.touchcontrols and input.showjoystick then
 		local x, y = love.mouse.getPosition()
 		if love.mouse.isDown(1) then
@@ -137,7 +145,6 @@ function input.update()
 					end
 					input.keys.up = nil
 					input.keys.down = nil
-					input.direction = 0
 				end
 				if angle > 45 and angle <= 135 then
 					input.keys.left = nil
@@ -146,7 +153,6 @@ function input.update()
 					if not input.keys.down then
 						input.keys.down = input.time
 					end
-					input.direction = 1
 				end
 				if angle > 135 or angle <= -135 then
 					if not input.keys.left then
@@ -155,7 +161,6 @@ function input.update()
 					input.keys.right = nil
 					input.keys.up = nil
 					input.keys.down = nil
-					input.direction = 2
 				end
 				if angle > -135 and angle <= -45 then
 					input.keys.left = nil
@@ -164,7 +169,6 @@ function input.update()
 						input.keys.up = input.time
 					end
 					input.keys.down = nil
-					input.direction = 3
 				end
 			else
 				input.keys.left = nil
@@ -174,10 +178,22 @@ function input.update()
 			end
 		end
 	end
+	local dir = pickmax({ input.keys.right, input.keys.down, input.keys.left, input.keys.up }, 4) - 1
+	if dir > -1 then
+		input.direction = dir
+	end
+end
+
+function input.update()
+	input.wheeldx = 0
+	input.wheeldy = 0
+	input.mousedx = 0
+	input.mousedy = 0
+	input.time = input.time + 1
 end
 
 function input.draw()
-	if input.showjoystick and input.touchcontrols and love.mouse.isDown(1) then
+	if input.showjoystick and input.touchcontrols and #love.touch.getTouches() > 0 then
 		local dx, dy = 8, 8
 		if input.keys.left then
 			dx = 16

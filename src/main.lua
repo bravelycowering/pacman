@@ -138,11 +138,12 @@ function love.quit()
 	end
 end
 
-function love.touchpressed()
-	input.touchcontrols = true
+function love.touchpressed(id, x, y)
+	input.touchpressed(id, x, y)
 end
 
 function love.update(dt)
+	input.preupdate()
 	if imgui then
 		imgui.love.Update(dt)
 		imgui.NewFrame()

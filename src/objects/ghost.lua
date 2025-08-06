@@ -162,7 +162,9 @@ function ghost:update(maze)
 			else
 				if self.eyes then
 					self.mover:settarget(maze:getghostbox(x, y))
-					self.mover:move(speed, false)
+					if not self.mover:move(speed, false) then
+						self:turnaround()
+					end
 					if maze:inghostbox(x, y + 8) then
 						local gbx, gby = maze:getghostbox(x, y)
 						local nx, ny = self:getpos()

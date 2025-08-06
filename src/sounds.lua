@@ -7,6 +7,8 @@ end
 local sounds = {}
 local bgm
 
+sounds.files = files
+
 function sounds.play_sfx(name)
 	local sound = files[name]
 	if sound then
@@ -37,20 +39,26 @@ function sounds.stop_sfx(name)
 	end
 end
 
-function sounds.pause_bgm()
-	if bgm and bgm:isPlaying() then
-		bgm:pause()
+function sounds.pause()
+	for key, value in pairs(files) do
+		if value and value:isPlaying() then
+			value:pause()
+		end
 	end
 end
 
-function sounds.unpause_bgm()
-	if bgm and not bgm:isPlaying() then
-		bgm:play()
+function sounds.unpause()
+	for key, value in pairs(files) do
+		if value and not value:isPlaying() and value:tell() ~= 0 then
+			value:play()
+		end
 	end
 end
 
 function sounds.stop_all()
-	love.audio.stop()
+	for key, value in pairs(files) do
+		value:stop()
+	end
 	bgm = nil
 end
 
