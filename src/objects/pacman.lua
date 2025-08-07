@@ -15,6 +15,7 @@ function pacman:load(maze, x, y)
 	self.mover.cornering = true
 	self.mover.targeting = false
 	self.speed = 1
+	self.frightspeed = 1.1
 	self.eatsound = 0
 	self.deathtimer = 0
 	self.dead = false
@@ -37,7 +38,7 @@ function pacman:kill()
 	self.deathtimer = 0
 end
 
-function pacman:update(maze)
+function pacman:update(maze, frightspeed)
 	if self.dead then
 		self.frame = math.min(math.floor(self.deathtimer / 9) + 1, 12)
 		if self.deathtimer == 0 then
@@ -65,7 +66,7 @@ function pacman:update(maze)
 				sounds.play_sfx("eat_dot_1")
 			end
 		else
-			if self.mover:move(self.speed) then
+			if self.mover:move(frightspeed and self.frightspeed or self.speed) then
 				self.frame = (self.frame + 0.5) % 4
 			end
 		end

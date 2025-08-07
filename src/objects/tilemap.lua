@@ -170,7 +170,7 @@ function tilemap:load(width, height, palette, poi)
 	for i = 0, self.size-1 do
 		self.palette[i] = palette or 0
 	end
-	self.defaultpalette = palette
+	self.defaultpalette = palette or 0
 	if type(width) == "string" then
 		local str = width
 		local saved = self:save()

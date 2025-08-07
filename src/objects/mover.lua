@@ -63,8 +63,19 @@ end
 
 function mover:setpos(x, y)
 	local width, height = self.maze:getdimensions()
-	self.x = x % width
-	self.y = y % height
+	self.x = x
+	self.y = y
+	local padding = 8
+	if self.x < -padding then
+		self.x = self.x + width + padding * 2
+	elseif self.x >= width + padding then
+		self.x = self.x - width - padding * 2
+	end
+	if self.y < -padding then
+		self.y = self.y + height + padding * 2
+	elseif self.y >= height + padding then
+		self.y = self.y - height - padding * 2
+	end
 end
 
 function mover:move(speed, random)

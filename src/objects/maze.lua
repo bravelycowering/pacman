@@ -70,7 +70,20 @@ local function getclamped(list, value)
 	return list[math.max(1, math.min(value, #list))]
 end
 
-function maze:load(tiles, settings)
+local function getnearest(list, x, y)
+	local maxdist = math.huge
+	local nearest
+	for index, value in ipairs(list) do
+		local dist = math.sqrt((x - value.x)^2 + (y - value.y)^2)
+		if dist < maxdist then
+			nearest = value
+			maxdist = dist
+		end
+	end
+	return nearest, maxdist
+end
+
+function maze:load(settings)
 	input.showjoystick = true
 	self.paused = false
 	self.level = settings.level or 1
@@ -85,7 +98,8 @@ function maze:load(tiles, settings)
 	self.statusstr = ""
 	self.statuspalstr = ""
 	self.canvas = canvas
-	self:loadmaze(tiles)
+	self.mazesupplier = settings.mazesupplier
+	self:loadmaze(self:mazesupplier(self.level))
 	self:startmaze()
 end
 
@@ -93,19 +107,13 @@ function maze:loadmaze(tiles)
 	-- create tiles
 	self.tilemap = new(tilemap)
 	self.tilemap:load(tiles)
-	self.mazelayout = tiles
 	self.dots = 0
 	self.fruittrigger = 1
 	self.pacmanx = 0
 	self.pacmany = 0
 	self.statusx = 0
 	self.statusy = 0
-	self.ghostbox = {
-		x1 = 0,
-		y1 = 0,
-		x2 = 0,
-		y2 = 0,
-	}
+	self.ghostboxes = {}
 	self.dotblink = 0
 	self.ghostcombo = 0
 	self.objpois = {}
@@ -127,10 +135,15 @@ function maze:loadmaze(tiles)
 			self.objpois[#self.objpois+1] = poi
 		end
 		if poi.name == "ghostbox" then
-			self.ghostbox.x1 = poi.x
-			self.ghostbox.y1 = poi.y
-			self.ghostbox.x2 = poi.x2 * 8
-			self.ghostbox.y2 = poi.y2 * 8
+			local ghostbox = {
+				x1 = poi.x,
+				y1 = poi.y,
+				x2 = poi.x2 * 8,
+				y2 = poi.y2 * 8,
+			}
+			ghostbox.x = (ghostbox.x1 + ghostbox.x2) / 2
+			ghostbox.y = (ghostbox.y1 + ghostbox.y2) / 2
+			self.ghostboxes[#self.ghostboxes+1] = ghostbox
 		end
 		if poi.name == "fruit" then
 			self.fruitpositions[#self.fruitpositions+1] = {
@@ -161,7 +174,6 @@ function maze:loadmaze(tiles)
 end
 
 function maze:startmaze(skipintro, restart)
-	sounds.stop_all()
 	input.direction = 2
 	self.pausetimer = 0
 	self.deathtimer = 0
@@ -190,8 +202,8 @@ function maze:startmaze(skipintro, restart)
 			self.ghosts[#self.ghosts+1] = g
 		end
 	end
-	self.statusstr, self.statuspalstr = self.tilemap:getstr(self.statusx, self.statusy, 8)
-	self.tilemap:setstr(self.statusx, self.statusy, "@@READY[@@", nil, 15)
+	self.statusstr, self.statuspalstr = self.tilemap:getstr(self.statusx + 2, self.statusy, 6)
+	self.tilemap:setstr(self.statusx + 2, self.statusy, "READY[", nil, 15)
 	if skipintro then
 		self.starttimer = 126
 		self:drawfruit()
@@ -257,14 +269,17 @@ function maze:getscatter()
 end
 
 function maze:getghostbox(x, y)
-	local gbx = (self.ghostbox.x1 + self.ghostbox.x2) / 2
-	local gby = (self.ghostbox.y1 + self.ghostbox.y2) / 2
-	return gbx, gby, self.ghostbox
+	local ghostbox = getnearest(self.ghostboxes, x, y)
+	return ghostbox.x, ghostbox.y, ghostbox
 end
 
 function maze:inghostbox(x, y)
-	local ghostbox = self.ghostbox
-	return x > ghostbox.x1 and x < ghostbox.x2 and y > ghostbox.y1 and y < ghostbox.y2
+	for index, ghostbox in ipairs(self.ghostboxes) do
+		if x > ghostbox.x1 and x < ghostbox.x2 and y > ghostbox.y1 and y < ghostbox.y2 then
+			return true
+		end
+	end
+	return false
 end
 
 function maze:intunnel(x, y)
@@ -373,7 +388,7 @@ function maze:ghostcollisioncheck(ptx, pty, g)
 				y = gy,
 				palette = 3,
 				text = tostring(bonus),
-				time = 0,
+				time = self.pausetimer,
 			}
 			if bonus == 1600 then
 				particle.text = "@00"
@@ -420,12 +435,21 @@ function maze:updategame()
 	end
 	if self.wintimer == 0 then
 		self.level = self.level + 1
-		self:loadmaze(self.mazelayout)
+		self:loadmaze(self:mazesupplier(self.level))
 		self:startmaze(true)
+	end
+	local anyeyes = false
+	local anyfright = false
+	for index, value in ipairs(self.ghosts) do
+		if value.eyes then
+			anyeyes = true
+		elseif value.fright > 0 then
+			anyfright = true
+		end
 	end
 	if self.starttimer <= 0 and self.wintimer <= 0 then
 		if self.starttimer == 0 then
-			self.tilemap:setstr(self.statusx, self.statusy, self.statusstr, nil, self.statuspalstr)
+			self.tilemap:setstr(self.statusx + 2, self.statusy, self.statusstr, nil, self.statuspalstr)
 		end
 		local turnaround = false
 		if self.pausetimer > 0 then
@@ -444,7 +468,7 @@ function maze:updategame()
 					self.tilemap:setstr(self.statusx, self.statusy, "GAME@@OVER", nil, 1)
 				end
 			end
-			if self.scattertime > 0 then
+			if not anyfright and self.scattertime > 0 then
 				self.scattertime = self.scattertime - 1
 			end
 			if self.scattertime == 0 then
@@ -458,20 +482,14 @@ function maze:updategame()
 					self.scattertime = -1
 				end
 			end
-			self.pacman:update(self)
+			self.pacman:update(self, anyfright)
 			if self.pacman.dead and #self.ghosts > 0 then
 				self.ghosts = {}
 			end
 		end
 		local ptx, pty = self.pacman:gettilepos()
-		local anyeyes = false
-		local anyfright = false
 		for index, value in ipairs(self.ghosts) do
-			if value.eyes then
-				anyeyes = true
-			elseif value.fright > 0 then
-				anyfright = true
-			else
+			if not value.eyes then
 				if turnaround then
 					value:turnaround()
 				end
@@ -482,27 +500,27 @@ function maze:updategame()
 			end
 			if self.pausetimer <= 0 and self:ghostcollisioncheck(ptx, pty, value) then return end
 		end
-		if not self.pacman.dead and self.pausetimer <= 0 then
-			do -- point particle group handling
-				local i = 1
-				local del = 0
-				local len = #self.pointparticles
-				while i <= len do
-					if i + del <= #self.pointparticles then
-						local particle = self.pointparticles[i + del]
-						self.pointparticles[i] = particle
-						particle.time = particle.time - 1
-						if particle.time <= 0 then
-							del = del + 1
-						else
-							i = i + 1
-						end
+		do -- point particle group handling
+			local i = 1
+			local del = 0
+			local len = #self.pointparticles
+			while i <= len do
+				if i + del <= #self.pointparticles then
+					local particle = self.pointparticles[i + del]
+					self.pointparticles[i] = particle
+					particle.time = particle.time - 1
+					if particle.time <= 0 then
+						del = del + 1
 					else
-						self.pointparticles[i] = nil
 						i = i + 1
 					end
+				else
+					self.pointparticles[i] = nil
+					i = i + 1
 				end
 			end
+		end
+		if not self.pacman.dead and self.pausetimer <= 0 then
 			do -- fruit group handling
 				local i = 1
 				local del = 0
@@ -635,8 +653,8 @@ function maze:eat(tilex, tiley)
 end
 
 function maze:getsolid(tilex, tiley)
-	local tile = self.tilemap:get(tilex%self.tilemap.width, tiley%self.tilemap.height)
-	return tile >= 128 and tile <= 162
+	local tile = self.tilemap:get(math.max(0, math.min(tilex, self.tilemap.width - 1)), math.max(0, math.min(tiley, self.tilemap.height - 1)))
+	return tile >= 128 and tile <= 163
 end
 
 function maze:canmove(x, y, dx, dy)
@@ -682,6 +700,8 @@ function maze:drawtocanvas()
 	graphics.setOpaque(true)
 	love.graphics.translate(0, 16)
 	love.graphics.translate(-self.camerax, -self.cameray)
+	local scissorx, scissory = -self.camerax, 16 - self.cameray
+	love.graphics.setScissor(scissorx, scissory, self.tilemap.width * 8, self.tilemap.height * 8)
 	local winflash = false
 	if self.wintimer <= 112 and self.wintimer > 0 then
 		winflash = self.wintimer % 24 <= 12
@@ -729,6 +749,7 @@ function maze:drawtocanvas()
 		end
 	end
 	graphics.setOpaque(true)
+	love.graphics.setScissor()
 	love.graphics.translate(self.camerax, self.cameray)
 	love.graphics.translate(0, -16)
 	self.tilemap:draw("header")

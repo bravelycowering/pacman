@@ -21,8 +21,19 @@ function input.wheelmoved(dx, dy)
 	input.wheeldy = dy
 end
 
-function input.keypressed(key)
+function input.keypressed(key, captured)
 	input.keys["kb-"..key] = input.time
+	if key == "lctrl" or key == "rctrl" then
+		input.keys["kb-ctrl"] = input.time
+	end
+	if key == "lshift" or key == "rshift" then
+		input.keys["kb-shift"] = input.time
+	end
+	if key == "lalt" or key == "ralt" then
+		input.keys["kb-alt"] = input.time
+	end
+	input.touchcontrols = false
+	if captured then return end
 	if key == "right" or key == "d" then
 		input.keys.right = input.time
 	end
@@ -48,6 +59,15 @@ end
 
 function input.keyreleased(key)
 	input.keys["kb-"..key] = nil
+	if key == "lctrl" or key == "rctrl" then
+		input.keys["kb-ctrl"] = nil
+	end
+	if key == "lshift" or key == "rshift" then
+		input.keys["kb-shift"] = nil
+	end
+	if key == "lalt" or key == "ralt" then
+		input.keys["kb-alt"] = nil
+	end
 	if key == "left" or key == "a" then
 		input.keys.left = nil
 	end

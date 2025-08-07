@@ -7,6 +7,7 @@ local maze = require "objects.maze"
 -- kinda... need this for the editor...
 local imgui = require "cimgui"
 local ffi = require "ffi"
+local filedialog = require "filedialog"
 
 local tilemap = require "objects.tilemap"
 local new = require "objects.new"
@@ -16,7 +17,8 @@ local editor = {}
 function editor:load(tiles)
 	-- create tiles
 	self.tilemap = new(tilemap)
-	self.tilemap:load(tiles)
+	self.tilemap:load(28, 32)
+	self.savelocation = false
 	self.tilex = 0
 	self.tiley = 0
 	self.canedit = true
@@ -77,11 +79,6 @@ function editor:update()
 		self.camerax = self.camerax + mx - scrollx - self.mx
 		self.cameray = self.cameray + my - scrolly - self.my
 	end
-	if input.isDown "kb-lctrl" and input.isPressed "kb-s" then
-		print("pressed")
-		love.filesystem.createDirectory("assets")
-		love.filesystem.write("assets/maze.bin", self.tilemap:save())
-	end
 	self.mx, self.my = mx - scrollx, my - scrolly
 end
 
@@ -127,6 +124,111 @@ local function inputDouble(label, current, ...)
 	return val
 end
 
+local function GetGlobalMenuBarHeight()
+	return imgui.GetFontSize() + imgui.GetStyle().FramePadding.y * 2
+end
+
+local function BeginGlobalMenuBar(id, x, y, w)
+	imgui.SetNextWindowPos({x, y})
+	imgui.SetNextWindowSize({w, imgui.GetFontSize() + imgui.GetStyle().FramePadding.y * 2})
+	imgui.PushStyleVar_Float(imgui.ImGuiStyleVar_WindowRounding, 0)
+	imgui.PushStyleVar_Vec2(imgui.ImGuiStyleVar_WindowMinSize, {0, 0})
+	imgui.PushStyleVar_Float(imgui.ImGuiStyleVar_WindowBorderSize, 0)
+	if not imgui.Begin("##"..id, nil,
+		imgui.ImGuiWindowFlags_NoTitleBar +
+		imgui.ImGuiWindowFlags_NoResize +
+		imgui.ImGuiWindowFlags_NoMove +
+		imgui.ImGuiWindowFlags_NoScrollbar +
+		imgui.ImGuiWindowFlags_NoSavedSettings +
+		imgui.ImGuiWindowFlags_MenuBar +
+		imgui.ImGuiWindowFlags_NoBringToFrontOnFocus +
+	0) or not imgui.BeginMenuBar() then
+		imgui.End()
+		imgui.PopStyleVar(3)
+		return false
+	end
+	return true
+end
+
+local function EndGlobalMenuBar()
+	imgui.EndMenuBar()
+	imgui.End()
+	imgui.PopStyleVar(3)
+end
+
+local function Menu(options, show, cl)
+	if cl == nil then
+		cl = {
+			opt = nil,
+			length = -1
+		}
+	end
+	for index, option in ipairs(options) do
+		local clicked = false
+		local shortcuttext
+		local sclength = math.huge
+		if option == true then
+			if show then
+				imgui.Separator()
+			end
+		elseif option.submenu then
+			local s = show and imgui.BeginMenu(option.label)
+			Menu(option.submenu, s, cl)
+			if s then
+				imgui.EndMenu()
+			end
+		else
+			if option.shortcut then
+				sclength = #option.shortcut
+				shortcuttext = table.concat(option.shortcut, " + ")
+				clicked = true
+				for i, v in ipairs(option.shortcut) do
+					if i == #option.shortcut then
+						clicked = clicked and input.isPressed("kb-"..v:lower())
+					else
+						clicked = clicked and input.isDown("kb-"..v:lower())
+					end
+					if not clicked then
+						break
+					end
+				end
+			end
+			local checked = false
+			local enabled = true
+			if option.checked ~= nil then
+				checked = option.checked
+			end
+			if option.enabled ~= nil then
+				enabled = option.enabled
+			end
+			if show then
+				clicked = clicked or imgui.MenuItem_Bool(option.label, shortcuttext, checked, enabled)
+			end
+			if not enabled then
+				clicked = false
+			end
+		end
+		if clicked then
+			if cl.length < sclength then
+				cl.opt = option
+				cl.length = sclength
+			end
+		end
+	end
+	if cl.opt then
+		return cl.opt.label
+	end
+end
+
+local function MainMenuBar(options)
+	local show = BeginGlobalMenuBar("MainMenuBar", 0, 0, love.graphics.getPixelWidth())
+	local clicked = Menu(options, show)
+	if show then
+		EndGlobalMenuBar()
+	end
+	return clicked
+end
+
 local function getUV(quad)
 	local x, y, w, h = quad:getViewport()
 	local sw, sh = quad:getTextureDimensions()
@@ -158,7 +260,7 @@ local function tileWidget(current, label)
 		imgui.Text(label)
 		imgui.EndGroup()
 	end
-	if imgui.BeginPopup("tile_selector") then
+	if imgui.BeginPopup("tile_selector", imgui.ImGuiWindowFlags_NoMove) then
 		imgui.PushStyleVar_Vec2(imgui.ImGuiStyleVar_ItemSpacing, {0, 0})
 		for y = 0, 15 do
 			for x = 0, 15 do
@@ -443,8 +545,8 @@ function editor:poiwindow()
 					end
 				end
 				imgui.PopItemFlag()
-				imgui.EndChild()
 			end
+			imgui.EndChild()
 			-- POI creator
 			imgui.SetNextItemWidth(150)
 			if imgui.BeginCombo("##newpoi", "+ New POI", imgui.ImGuiComboFlags_NoArrowButton) then
@@ -457,6 +559,7 @@ function editor:poiwindow()
 							x = 0,
 							y = 0,
 						}
+						selected = poi
 						if name == "ghost" then
 							poi.direction = 0
 							poi.palette = 1
@@ -522,36 +625,144 @@ function editor:poiwindow()
 end
 
 function editor:menubar()
-	imgui.PushStyleVar_Float(imgui.ImGuiStyleVar_WindowBorderSize, 0)
-	imgui.BeginMainMenuBar()
-	if imgui.BeginMenu("File") then
-		if imgui.MenuItem_Bool("New...", "Ctrl + N") then
-			print("new")
-		end
-		if imgui.MenuItem_Bool("Open...", "Ctrl + O") then
-			print("open")
-		end
-		if imgui.BeginMenu("Open Recent...") then
-			if imgui.MenuItem_Bool("fuck.bin") then
-				print("open")
-			end
-			imgui.EndMenu()
-		end
-		imgui.Separator()
-		if imgui.MenuItem_Bool("Save", "Ctrl + S") then
-			print("save")
-		end
-		if imgui.MenuItem_Bool("Save As...", "Ctrl + Shift + S") then
-			print("save as")
-		end
-		imgui.Separator()
-		if imgui.MenuItem_Bool("Exit", "Alt + F4") then
-			love.event.quit(0)
-		end
-		imgui.EndMenu()
+	local clicked = MainMenuBar {
+		{
+			label = "File",
+			submenu = {
+				{
+					label = "New",
+					shortcut = {"Ctrl", "N"}
+				},
+				{
+					label = "Open...",
+					shortcut = {"Ctrl", "O"}
+				},
+				true,
+				{
+					label = "Save",
+					shortcut = {"Ctrl", "S"}
+				},
+				{
+					label = "Save As...",
+					shortcut = {"Ctrl", "Shift", "S"}
+				},
+				true,
+				{
+					label = "Quit to Menu",
+					shortcut = {"Ctrl", "F4"}
+				},
+				{
+					label = "Exit",
+					shortcut = {"Alt", "F4"}
+				},
+			}
+		},
+		{
+			label = "Run",
+			submenu = {
+				{
+					label = "Quick Test",
+					shortcut = {"F5"}
+				},
+				{
+					label = "Run Fullscreen...",
+					shortcut = {"Ctrl", "F5"}
+				},
+			}
+		},
+	}
+	local save = false
+	local saveloc
+	if clicked == "Save" then
+		save = true
+		saveloc = self.savelocation
 	end
-	imgui.EndMainMenuBar()
-	imgui.PopStyleVar()
+	if clicked == "Save As..." then
+		saveloc = false
+		save = true
+	end
+	if save and not saveloc then
+		saveloc = filedialog(nil, true)
+	end
+	if save and saveloc then
+		local f = io.open(saveloc, "w+b")
+		if f then
+			self.savelocation = saveloc
+			f:write(self.tilemap:save())
+			f:close()
+			print("saved to "..saveloc)
+		else
+			self.savelocation = false
+			print("save failed")
+		end
+	end
+	if clicked == "Open..." then
+		saveloc = filedialog()
+		if saveloc then
+			local f = io.open(saveloc, "r+b")
+			if f then
+				self.savelocation = saveloc
+				local tiles = f:read("*all")
+				f:close()
+				self.tilemap:load(tiles)
+				print("opened "..saveloc)
+			else
+				print("open failed")
+			end
+		end
+	end
+	if clicked == "New" then
+		self.tilemap:load(28, 32)
+		self.savelocation = false
+		print("new")
+	end
+	if clicked == "Quit to Menu" then
+		State = require "objects.freeplay"
+		State:load(true)
+	end
+	if clicked == "Exit" then
+		love.event.quit(0)
+	end
+	if clicked == "Quick Test" then
+		self.fullscreen = false
+		self.maze = new(maze)
+		self.maze:load {
+			lives = math.huge,
+			testmode = true,
+			mazesupplier = function()
+				return self.tilemap:save()
+			end
+		}
+		sounds.stop_all()
+		self.maze.starttimer = 127
+	end
+	if clicked == "Run Fullscreen..." then
+		self.fullscreen = true
+		local tiles = self.tilemap:save()
+		self.maze = new(maze)
+		self.maze:load {
+			lives = 5,
+			testmode = true,
+			mazesupplier = function()
+				return tiles
+			end
+		}
+		if not self.fullscreen then
+			sounds.stop_all()
+			self.maze.starttimer = 127
+		end
+	end
+end
+
+function editor:statusbar()
+	BeginGlobalMenuBar("MainStatusBar", 0, love.graphics.getPixelHeight() - GetGlobalMenuBarHeight(), love.graphics.getPixelWidth())
+	imgui.Text("Zoom:")
+	imgui.SetNextItemWidth(100)
+	scale = sliderInt("##zoom", scale*2, 2, 20, tostring(scale * 100).."%%")/2
+	if self.savelocation then
+		imgui.Text("%s", self.savelocation)
+	end
+	EndGlobalMenuBar()
 end
 
 function editor:playwindow()
@@ -578,6 +789,8 @@ end
 
 local prop_width, prop_height, prop_anchor = nil, nil, 1
 function editor:gui()
+	self:menubar()
+	self:statusbar()
 	-- MAZE DATA EDITOR
 	imgui.SetNextWindowSize({250, 440}, imgui.ImGuiCond_FirstUseEver)
 	imgui.SetNextWindowPos({100, 100}, imgui.ImGuiCond_FirstUseEver)
@@ -601,19 +814,6 @@ function editor:gui()
 	imgui.SetNextWindowPos({400, 100}, imgui.ImGuiCond_FirstUseEver)
 	self:poiwindow()
 	-- PLAYTEST WINDOW
-	if input.isPressed "kb-f5" then
-		self.fullscreen = input.isDown "kb-lctrl"
-		self.maze = new(maze)
-		self.maze:load(self.tilemap:save(), {
-			lives = self.fullscreen and 5 or math.huge,
-			testmode = true,
-		})
-		if not self.fullscreen then
-			sounds.stop_all()
-			self.maze.starttimer = 127
-		end
-		imgui.SetNextWindowFocus()
-	end
 	if self.maze then
 		imgui.SetNextWindowPos({1000, 100}, imgui.ImGuiCond_FirstUseEver)
 		self:playwindow()

@@ -21,12 +21,12 @@ function ghost:load(maze, poi)
 	local gbx, gby = maze:getghostbox(x, y)
 	if maze:inghostbox(x, y) then
 		self.inghostbox = true
-		self.homex = x
-		self.homey = y
+		self.homex = x - gbx
+		self.homey = y - gby
 	else
 		self.inghostbox = false
-		self.homex = gbx
-		self.homey = gby
+		self.homex = 0
+		self.homey = 0
 	end
 	self.enteringghostbox = false
 	self.exitingghostbox = false
@@ -53,7 +53,7 @@ function ghost:getdirection()
 end
 
 function ghost:turnaround()
-	if self.eyes or self.fright > 0 or self.inghostbox then return end
+	if self.eyes or self.inghostbox then return end
 	self.mover:setdirection((self.mover.direction + 2) % 4)
 end
 
@@ -125,21 +125,24 @@ function ghost:update(maze)
 		end
 	else
 		if self.enteringghostbox then
-			if y < self.homey then
+			local gbx, gby = maze:getghostbox(self:getpos())
+			local homex = self.homex + gbx
+			local homey = self.homey + gby
+			if y < homey then
 				y = y + speed
 				self.mover:setdirection(1)
 			else
-				y = self.homey
+				y = homey
 				local finish = false
-				if x < self.homex then
+				if x < homex then
 					x = x + speed
-					if x >= self.homex then
+					if x >= homex then
 						finish = true
 					end
 					self.mover:setdirection(0)
-				elseif x > self.homex then
+				elseif x > homex then
 					x = x - speed
-					if x <= self.homex then
+					if x <= homex then
 						finish = true
 					end
 					self.mover:setdirection(2)
@@ -147,7 +150,7 @@ function ghost:update(maze)
 					finish = true
 				end
 				if finish then
-					x = self.homex
+					x = homex
 					self.inghostbox = true
 					self.enteringghostbox = false
 					self.eyes = false
@@ -161,7 +164,8 @@ function ghost:update(maze)
 				end
 			else
 				if self.eyes then
-					self.mover:settarget(maze:getghostbox(x, y))
+					local gbx, gby, ghostbox = maze:getghostbox(x, y)
+					self.mover:settarget(gbx, ghostbox.y1)
 					if not self.mover:move(speed, false) then
 						self:turnaround()
 					end

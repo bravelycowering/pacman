@@ -48,15 +48,12 @@ function love.keypressed(key)
 		imgui.love.KeyPressed(key)
     	capture = imgui.love.GetWantCaptureKeyboard()
 	end
-	if not capture then
-		input.touchcontrols = false
-		if key == "f11" then
-			love.window.setFullscreen(not love.window.getFullscreen(), "desktop")
-		end
-		input.keypressed(key)
-		if key == "r" and love.keyboard.isDown "lctrl" then
-			love.event.quit("restart")
-		end
+	input.keypressed(key, capture)
+	if key == "f11" then
+		love.window.setFullscreen(not love.window.getFullscreen(), "desktop")
+	end
+	if key == "r" and love.keyboard.isDown "lctrl" and love.keyboard.isDown "lshift" then
+		love.event.quit("restart")
 	end
 end
 

@@ -1,28 +1,34 @@
 local shader = love.graphics.newShader "shader.glsl"
-local palettedata = love.image.newImageData "assets/palette.png"
-local palette = love.graphics.newImage(palettedata)
-local texture = love.graphics.newImage "assets/texture.png"
 local font = love.graphics.newImage "font.png"
 
-shader:send("palette", palette)
-shader:send("palette_size", {palette:getDimensions()})
+local graphics = {}
+
+local function reload()
+	graphics.palettedata = love.image.newImageData "assets/palette.png"
+	graphics.palette = love.graphics.newImage(graphics.palettedata)
+	graphics.texture = love.graphics.newImage "assets/texture.png"
+	shader:send("palette", graphics.palette)
+	shader:send("palette_size", {graphics.palette:getDimensions()})
+end
+
+reload()
 
 local function setPalette(index)
 	shader:send("index", index)
 end
 
 local function getPaletteColor(x, y)
-	return {palettedata:getPixel(x, y)}
+	return {graphics.palettedata:getPixel(x, y)}
 end
 
 local palstrip = {}
 
 local function getPaletteStrip(x)
 	if not palstrip[x] then
-		local h = palettedata:getHeight()
+		local h = graphics.palettedata:getHeight()
 		local imgdat = love.image.newImageData(1, h)
 		for y = 0, h - 1 do
-			imgdat:setPixel(0, y, palettedata:getPixel(x, y))
+			imgdat:setPixel(0, y, graphics.palettedata:getPixel(x, y))
 		end
 		palstrip[x] = love.graphics.newImage(imgdat)
 	end
@@ -30,7 +36,7 @@ local function getPaletteStrip(x)
 end
 
 local function getMaxPalette()
-	return palettedata:getWidth() - 1
+	return graphics.palettedata:getWidth() - 1
 end
 
 local function setOpaque(opaque)
@@ -74,7 +80,7 @@ local function quadColumn(count, x, y, width, height, sw, sh)
 end
 
 local function draw(...)
-	love.graphics.draw(texture, ...)
+	love.graphics.draw(graphics.texture, ...)
 end
 
 local function text(str, anchorx, anchory)
@@ -107,18 +113,17 @@ local function text(str, anchorx, anchory)
 	return sb
 end
 
-return {
-	quadStrip = quadStrip,
-	quadColumn = quadColumn,
-	quad = love.graphics.newQuad,
-	tile = tile,
-	draw = draw,
-	text = text,
-	setPalette = setPalette,
-	getPaletteColor = getPaletteColor,
-	getMaxPalette = getMaxPalette,
-	setOpaque = setOpaque,
-	palette = palette,
-	texture = texture,
-	shader = shader,
-}
+graphics.quadStrip = quadStrip
+graphics.quadColumn = quadColumn
+graphics.quad = love.graphics.newQuad
+graphics.tile = tile
+graphics.draw = draw
+graphics.text = text
+graphics.setPalette = setPalette
+graphics.getPaletteColor = getPaletteColor
+graphics.getMaxPalette = getMaxPalette
+graphics.setOpaque = setOpaque
+graphics.shader = shader
+graphics.reload = reload
+
+return graphics

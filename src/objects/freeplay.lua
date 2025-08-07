@@ -139,19 +139,26 @@ function freeplay:update()
 			end
 			sounds.play_sfx("credit")
 			State = new (require "objects.maze")
-			State:load(love.filesystem.read("assets/maze.bin"), {
+			local mazes = {}
+			for m in love.filesystem.read("assets/mazes.txt"):gmatch("[^\n\r]+") do
+				mazes[#mazes+1] = m
+			end
+			State:load {
 				killscreen = self.KILLSCREEN,
 				lives = self.LIVES,
 				level = self.LEVEL,
 				bonuslife = self.BONUSLIFE,
 				crtshader = self.CRTSHADER,
-			})
+				mazesupplier = function(m, level)
+					return love.filesystem.read("assets/mazes/"..mazes[((level-1)%#mazes) + 1])
+				end,
+			}
 			self:drawchoices()
 		end
 	end
 	if input.isPressed "b" and self.editor then
 		State = new (require "objects.editor")
-		State:load(love.filesystem.read("assets/maze.bin"))
+		State:load()
 		sounds.play_sfx("credit")
 	end
 	if playsound then
