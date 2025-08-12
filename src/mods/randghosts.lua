@@ -1,6 +1,6 @@
-local ghost = require "objects.ghost"
-local maze = require "objects.maze"
-local new = require "objects.new"
+local ghost = require "pacman.ghost"
+local maze = require "pacman.maze"
+local new = require "pacman.new"
 local input = require "input"
 
 local l = ghost.load

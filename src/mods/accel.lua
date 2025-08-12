@@ -1,4 +1,4 @@
-local pacman = require "objects.pacman"
+local pacman = require "pacman.pacman"
 local sounds = require "sounds"
 local input = require "input"
 

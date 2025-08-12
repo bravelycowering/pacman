@@ -4,26 +4,33 @@ local data = require "data"
 local has_ffi, ffi = pcall(require, "ffi")
 local has_imgui, imgui = false, nil
 
-if has_ffi and ffi.os == "Windows" then
-	-- if ffi exists, make the window have a black titlebar like other windows apps
-	local dwmapi = ffi.load("dwmapi")
+if has_ffi then
 	ffi.cdef [[
-		long DwmSetWindowAttribute(void* hwnd, unsigned long dwAttribute, const void* pvAttribute, unsigned long cbAttribute);
-		void* GetActiveWindow();
 		void* malloc(size_t size);
-		void free(void *ptr);
+		void free(void* ptr);
 	]]
-	local C = ffi.C
-	local size = assert(ffi.sizeof("int"))
-	local ptr = ffi.cast("int *", C.malloc(size))
-	ffi.gc(ptr, C.free)
-	ffi.copy(ptr, "\xff\xff\xff\xff", size)
-	local hwnd = C.GetActiveWindow()
-	dwmapi.DwmSetWindowAttribute(hwnd, 20, ptr, size)
+	if ffi.os == "Windows" then
+		-- if ffi exists and in windows, make the window have a black titlebar like other windows apps
+		local dwmapi = ffi.load("dwmapi")
+		ffi.cdef [[
+			long DwmSetWindowAttribute(void* hwnd, unsigned long dwAttribute, const void* pvAttribute, unsigned long cbAttribute);
+			void* GetActiveWindow();
+			void* malloc(size_t size);
+			void free(void *ptr);
+		]]
+		local C = ffi.C
+		local size = assert(ffi.sizeof("int"))
+		local ptr = ffi.cast("int *", C.malloc(size))
+		ffi.gc(ptr, C.free)
+		ffi.copy(ptr, "\xff\xff\xff\xff", size)
+		local hwnd = C.GetActiveWindow()
+		dwmapi.DwmSetWindowAttribute(hwnd, 20, ptr, size)
+	end
 	-- get imgui if it exists
-	package.cpath = package.cpath .. ";"..os.getenv("USERPROFILE").."\\bin\\lua\\?.dll"
-	package.path = package.path .. ";"..os.getenv("USERPROFILE").."\\bin\\lua\\?.lua" .. ";"..os.getenv("USERPROFILE").."\\bin\\lua\\?\\init.lua"
-	has_imgui, imgui = pcall(require, "cimgui")
+	has_imgui = package.searchpath("cimgui", package.cpath) ~= nil
+	if has_imgui then
+		imgui = require "cimgui"
+	end
 end
 
 -- dont smooth graphics
@@ -32,13 +39,13 @@ data.loadSprites()
 
 local input = require "input"
 
-local new = require "objects.new"
+local new = require "pacman.new"
 
 function love.load()
 	if imgui then
 		imgui.love.Init()
 	end
-	State = new(require "objects.freeplay")
+	State = new(require "pacman.freeplay")
 	State:load(has_imgui)
 end
 

@@ -3,8 +3,8 @@ local sounds = require "sounds"
 local input = require "input"
 local data = require "data"
 
-local mover = require "objects.mover"
-local new = require "objects.new"
+local mover = require "pacman.mover"
+local new = require "pacman.new"
 
 local pacman = {}
 

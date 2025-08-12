@@ -2,15 +2,15 @@ local graphics = require "graphics"
 local sounds = require "sounds"
 local input = require "input"
 local data = require "data"
-local maze = require "objects.maze"
+local maze = require "pacman.maze"
 
 -- kinda... need this for the editor...
 local imgui = require "cimgui"
 local ffi = require "ffi"
 local filedialog = require "filedialog"
 
-local tilemap = require "objects.tilemap"
-local new = require "objects.new"
+local tilemap = require "pacman.tilemap"
+local new = require "pacman.new"
 
 local editor = {}
 
@@ -682,7 +682,7 @@ function editor:menubar()
 		save = true
 	end
 	if save and not saveloc then
-		saveloc = filedialog(nil, true)
+		saveloc = filedialog.save()
 	end
 	if save and saveloc then
 		local f = io.open(saveloc, "w+b")
@@ -697,7 +697,7 @@ function editor:menubar()
 		end
 	end
 	if clicked == "Open..." then
-		saveloc = filedialog()
+		saveloc = filedialog.open()
 		if saveloc then
 			local f = io.open(saveloc, "r+b")
 			if f then
@@ -717,7 +717,7 @@ function editor:menubar()
 		print("new")
 	end
 	if clicked == "Quit to Menu" then
-		State = require "objects.freeplay"
+		State = require "pacman.freeplay"
 		State:load(true)
 	end
 	if clicked == "Exit" then

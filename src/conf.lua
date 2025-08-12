@@ -6,5 +6,5 @@ function love.conf(t)
 	t.window.title = "PAC-MAN"
 	t.identity = "bravelycowering-pacman"
 	t.externalstorage = true
-	-- t.appendidentity = true
+	t.appendidentity = true
 end

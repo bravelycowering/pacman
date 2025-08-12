@@ -3,11 +3,11 @@ local sounds = require "sounds"
 local input = require "input"
 local data = require "data"
 
-local tilemap = require "objects.tilemap"
-local pacman = require "objects.pacman"
-local ghost = require "objects.ghost"
-local fruit = require "objects.fruit"
-local new = require "objects.new"
+local tilemap = require "pacman.tilemap"
+local pacman = require "pacman.pacman"
+local ghost = require "pacman.ghost"
+local fruit = require "pacman.fruit"
+local new = require "pacman.new"
 
 local canvas = love.graphics.newCanvas(data.width * 8, data.height * 8)
 
