@@ -2,21 +2,24 @@ local graphics = require "graphics"
 local sounds = require "sounds"
 local input = require "input"
 local data = require "data"
-local maze = require "pacman.maze"
+local maze = require "objects.maze"
 
 -- kinda... need this for the editor...
 local imgui = require "cimgui"
 local ffi = require "ffi"
 local filedialog = require "filedialog"
 
-local tilemap = require "pacman.tilemap"
-local new = require "pacman.new"
+local tilemap = require "objects.tilemap"
 
 local editor = {}
 
+function editor:new()
+	return setmetatable({}, {__index=self})
+end
+
 function editor:load(tiles)
 	-- create tiles
-	self.tilemap = new(tilemap)
+	self.tilemap = tilemap:new()
 	self.tilemap:load(28, 32)
 	self.savelocation = false
 	self.tilex = 0
@@ -717,7 +720,7 @@ function editor:menubar()
 		print("new")
 	end
 	if clicked == "Quit to Menu" then
-		State = require "pacman.freeplay"
+		State = require "objects.freeplay"
 		State:load(true)
 	end
 	if clicked == "Exit" then
@@ -725,7 +728,7 @@ function editor:menubar()
 	end
 	if clicked == "Quick Test" then
 		self.fullscreen = false
-		self.maze = new(maze)
+		self.maze = maze:new()
 		self.maze:load {
 			lives = math.huge,
 			testmode = true,
@@ -739,7 +742,7 @@ function editor:menubar()
 	if clicked == "Run Fullscreen..." then
 		self.fullscreen = true
 		local tiles = self.tilemap:save()
-		self.maze = new(maze)
+		self.maze = maze:new()
 		self.maze:load {
 			lives = 5,
 			testmode = true,

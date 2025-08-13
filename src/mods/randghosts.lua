@@ -1,6 +1,5 @@
-local ghost = require "pacman.ghost"
-local maze = require "pacman.maze"
-local new = require "pacman.new"
+local ghost = require "objects.ghost"
+local maze = require "objects.maze"
 local input = require "input"
 
 local l = ghost.load
@@ -10,7 +9,7 @@ local palettes = {}
 local level = 0
 
 local behaviortemplate = [[
-	local self, maze, input, new, ghost = ...
+	local self, maze, input, ghost = ...
 	local x, y = self:getpos()
 	local px, py, pdir = maze:getpacman(x, y)
 	local width, height = maze:getdimensions()
@@ -40,7 +39,7 @@ local function generatebehavior(b)
 		"self.mover.direction = self.mover.lookdirection",
 		"if math.sqrt((x - px)^2 + (y - py)^2) > "..tostring(love.math.random(32, 96)).." then self.speed = math.min(self.speed + 0.02, 2); self.palette = math.floor(self.frame) == 0 and self.palette or love.math.random(1, 18) else self.speed = math.max(0.25, self.speed - 0.1); self.palette = 19 end",
 		"if self.lastdir ~= self:getdirection() then self.lastdir = self:getdirection(); self.speed = 0 else self.speed = math.min(self.speed + 0.05, 4) end",
-		"if self.mitostimer == nil then self.mitostimer = 600 end; if self.mitostimer then self.mitostimer = self.mitostimer - 1; if self.mitostimer == 0 then self.mitostimer = 600; local g = new(ghost); g.mitostimer = false; maze.ghosts[#maze.ghosts+1] = g; g:load(maze, {x=self.mover.x-4,y=self.mover.y-4,palette=0,behavior=#maze.ghosts,direction=(self:getdirection()+2)%%4}); g.iseaten = true end end",
+		"if self.mitostimer == nil then self.mitostimer = 600 end; if self.mitostimer then self.mitostimer = self.mitostimer - 1; if self.mitostimer == 0 then self.mitostimer = 600; local g = ghost:new(); g.mitostimer = false; maze.ghosts[#maze.ghosts+1] = g; g:load(maze, {x=self.mover.x-4,y=self.mover.y-4,palette=0,behavior=#maze.ghosts,direction=(self:getdirection()+2)%%4}); g.iseaten = true end end",
 	}
 	local spindex = math.max(1, math.floor(love.math.random() * (#specials + 1)))
 	local str = behaviortemplate
@@ -88,7 +87,7 @@ local gt = ghost.gettarget
 ---@diagnostic disable-next-line: duplicate-set-field
 function ghost:gettarget(m)
 	if level > 1 then
-		return behaviors[self.behavior](self, m, input, new, ghost)
+		return behaviors[self.behavior](self, m, input, ghost)
 	else
 		return gt(self, m)
 	end

@@ -2,15 +2,18 @@ local graphics = require "graphics"
 local sounds = require "sounds"
 local data = require "data"
 
-local mover = require "pacman.mover"
-local new = require "pacman.new"
+local mover = require "objects.mover"
 
 local fruit = {}
+
+function fruit:new()
+	return setmetatable({}, {__index=self})
+end
 
 function fruit:load(maze, x, y, tile, pal)
 	self.tile = tile
 	self.palette = pal
-	self.mover = new(mover)
+	self.mover = mover:new()
 	self.mover:load(maze, x, y, 0)
 	self.time = 540 + love.math.random(0, 60)
 end

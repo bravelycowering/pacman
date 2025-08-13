@@ -4,11 +4,13 @@ local input = require "input"
 local grid = require "grid"
 local data = require "data"
 
-local new = require "pacman.new"
-
 local freeplay = {}
 
 local mods = {[0]="none", "accel", "randghosts"}
+
+function freeplay:new()
+	return setmetatable({}, {__index=self})
+end
 
 function freeplay:load(has_imgui)
 	input.showjoystick = true
@@ -138,7 +140,7 @@ function freeplay:update()
 				require("mods."..mods[self.MOD])
 			end
 			sounds.play_sfx("credit")
-			State = new (require "pacman.maze")
+			State = require("objects.maze"):new()
 			local mazes = {}
 			for m in love.filesystem.read("assets/mazes.txt"):gmatch("[^\n\r]+") do
 				mazes[#mazes+1] = m
@@ -157,7 +159,7 @@ function freeplay:update()
 		end
 	end
 	if input.isPressed "b" and self.editor then
-		State = new (require "pacman.editor")
+		State = require("objects.editor"):new()
 		State:load()
 		sounds.play_sfx("credit")
 	end

@@ -3,11 +3,10 @@ local sounds = require "sounds"
 local input = require "input"
 local data = require "data"
 
-local tilemap = require "pacman.tilemap"
-local pacman = require "pacman.pacman"
-local ghost = require "pacman.ghost"
-local fruit = require "pacman.fruit"
-local new = require "pacman.new"
+local tilemap = require "objects.tilemap"
+local pacman = require "objects.pacman"
+local ghost = require "objects.ghost"
+local fruit = require "objects.fruit"
 
 local canvas = love.graphics.newCanvas(data.width * 8, data.height * 8)
 
@@ -83,6 +82,10 @@ local function getnearest(list, x, y)
 	return nearest, maxdist
 end
 
+function maze:new()
+	return setmetatable({}, {__index=self})
+end
+
 function maze:load(settings)
 	input.showjoystick = true
 	self.paused = false
@@ -105,7 +108,7 @@ end
 
 function maze:loadmaze(tiles)
 	-- create tiles
-	self.tilemap = new(tilemap)
+	self.tilemap = tilemap:new()
 	self.tilemap:load(tiles)
 	self.dots = 0
 	self.fruittrigger = 1
@@ -181,7 +184,7 @@ function maze:startmaze(skipintro, restart)
 	self.ghosts = {}
 	self.fruits = {}
 	self.pointparticles = {}
-	self.pacman = new(pacman)
+	self.pacman = pacman:new()
 	self.pacman:load(self, self.pacmanx, self.pacmany)
 	self.pacman.speed = getclamped(maze.pacmanspeed, self.level)
 	self.pacman.frightspeed = getclamped(maze.pacmanfrightspeed, self.level)
@@ -189,7 +192,7 @@ function maze:startmaze(skipintro, restart)
 	self.scattertime = 1
 	for index, poi in ipairs(self.objpois) do
 		if poi.name == "ghost" then
-			local g = new(ghost)
+			local g = ghost:new()
 			g:load(self, poi)
 			g.speed = getclamped(maze.ghostspeed, self.level)
 			g.tunnelspeed = getclamped(maze.ghosttunnelspeed, self.level)
@@ -602,7 +605,7 @@ end
 function maze:spawnfruit()
 	self.fruits = {}
 	for index, value in ipairs(self.fruitpositions) do
-		local f = new(fruit)
+		local f = fruit:new()
 		local tile = getclamped(maze.fruittiles, self.level)
 		local pal = getclamped(maze.fruitpals, self.level)
 		f:load(self, value.x, value.y, tile, pal)
@@ -742,7 +745,7 @@ function maze:drawtocanvas()
 	-- draw sprites
 	if self.starttimer <= 127 then
 		if not self.effectpause then
-			self.pacman:draw(self)
+			self.pacman:draw()
 		end
 		for index, value in ipairs(self.ghosts) do
 			value:draw(self)

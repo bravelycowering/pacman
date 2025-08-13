@@ -2,10 +2,13 @@ local graphics = require "graphics"
 local sounds = require "sounds"
 local data = require "data"
 
-local mover = require "pacman.mover"
-local new = require "pacman.new"
+local mover = require "objects.mover"
 
 local ghost = {}
+
+function ghost:new()
+	return setmetatable({}, {__index=self})
+end
 
 function ghost:load(maze, poi)
 	self.palette = poi.palette
@@ -15,7 +18,7 @@ function ghost:load(maze, poi)
 	self.frame = 0
 	self.fright = 0
 	self.eyes = false
-	self.mover = new(mover)
+	self.mover = mover:new()
 	self.mover:load(maze, poi.x + 4, poi.y + 4, poi.direction)
 	local x, y = self:getpos()
 	local gbx, gby = maze:getghostbox(x, y)

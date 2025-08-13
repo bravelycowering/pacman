@@ -3,14 +3,17 @@ local sounds = require "sounds"
 local input = require "input"
 local data = require "data"
 
-local mover = require "pacman.mover"
-local new = require "pacman.new"
+local mover = require "objects.mover"
 
 local pacman = {}
 
+function pacman:new()
+	return setmetatable({}, {__index=self})
+end
+
 function pacman:load(maze, x, y)
 	self.frame = 0
-	self.mover = new(mover)
+	self.mover = mover:new()
 	self.mover:load(maze, x, y, 2)
 	self.mover.cornering = true
 	self.mover.targeting = false

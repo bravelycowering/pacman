@@ -2,6 +2,10 @@ local rng = require "rng"
 
 local mover = {}
 
+function mover:new()
+	return setmetatable({}, {__index=self})
+end
+
 function mover:load(maze, x, y, direction)
 	self.lookdirection = direction
 	self.direction = direction

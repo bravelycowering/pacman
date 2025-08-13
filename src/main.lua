@@ -39,13 +39,11 @@ data.loadSprites()
 
 local input = require "input"
 
-local new = require "pacman.new"
-
 function love.load()
 	if imgui then
 		imgui.love.Init()
 	end
-	State = new(require "pacman.freeplay")
+	State = require("objects.freeplay"):new()
 	State:load(has_imgui)
 end
 

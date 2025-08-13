@@ -103,6 +103,10 @@ local function setflag(number, index, value)
 	return number
 end
 
+function tilemap:new()
+	return setmetatable({}, {__index=self})
+end
+
 function tilemap:load(width, height, palette, poi)
 	if type(width) == "string" then
 		local str = width
