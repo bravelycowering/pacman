@@ -2,3 +2,4 @@ bin
 .vscode
 *.dll
 *.so
+*.dylib
