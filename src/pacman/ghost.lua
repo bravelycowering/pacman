@@ -1,8 +1,7 @@
-local graphics = require "graphics"
-local sounds = require "sounds"
-local data = require "data"
+local graphics = require "pacman.graphics"
+local sounds = require "pacman.sounds"
 
-local mover = require "objects.mover"
+local mover = require "pacman.mover"
 
 local ghost = {}
 
@@ -326,7 +325,7 @@ function ghost:draw(maze)
 			graphics.setPalette(self.palette)
 		end
 	end
-	graphics.draw(data.ghostanim[anim][math.floor(self.frame) + 1], x - 8, y - 8)
+	graphics.draw(graphics.ghostanim[anim][math.floor(self.frame) + 1], x - 8, y - 8)
 	if maze and false then
 		local tx, ty = self:gettarget(maze)
 		graphics.draw(graphics.tile(163), tx - 4, ty - 4)

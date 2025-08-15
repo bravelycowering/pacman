@@ -1,16 +1,20 @@
-local files = {}
-for index, value in ipairs(love.filesystem.getDirectoryItems("assets/sounds")) do
-	local name = value:gsub("%.[^%.]+$", "")
-	files[name] = love.audio.newSource("assets/sounds/"..value, "static")
-end
-
 local sounds = {}
 local bgm
 
-sounds.files = files
+sounds.files = {}
+
+function sounds.reload()
+	local files = {}
+	for index, value in ipairs(love.filesystem.getDirectoryItems("assets/sounds")) do
+		local name = value:gsub("%.[^%.]+$", "")
+		files[name] = love.audio.newSource("assets/sounds/"..value, "static")
+	end
+	sounds.stop_all()
+	sounds.files = files
+end
 
 function sounds.play_sfx(name)
-	local sound = files[name]
+	local sound = sounds.files[name]
 	if sound then
 		sound:stop()
 		sound:setLooping(false)
@@ -21,7 +25,7 @@ function sounds.play_sfx(name)
 end
 
 function sounds.loop_sfx(name)
-	local sound = files[name]
+	local sound = sounds.files[name]
 	if sound then
 		sound:setLooping(true)
 		sound:play()
@@ -31,7 +35,7 @@ function sounds.loop_sfx(name)
 end
 
 function sounds.stop_sfx(name)
-	local sound = files[name]
+	local sound = sounds.files[name]
 	if sound then
 		sound:stop()
 	else
@@ -40,7 +44,7 @@ function sounds.stop_sfx(name)
 end
 
 function sounds.pause()
-	for key, value in pairs(files) do
+	for key, value in pairs(sounds.files) do
 		if value and value:isPlaying() then
 			value:pause()
 		end
@@ -48,7 +52,7 @@ function sounds.pause()
 end
 
 function sounds.unpause()
-	for key, value in pairs(files) do
+	for key, value in pairs(sounds.files) do
 		if value and not value:isPlaying() and value:tell() ~= 0 then
 			value:play()
 		end
@@ -56,14 +60,14 @@ function sounds.unpause()
 end
 
 function sounds.stop_all()
-	for key, value in pairs(files) do
+	for key, value in pairs(sounds.files) do
 		value:stop()
 	end
 	bgm = nil
 end
 
 function sounds.bgm(name)
-	local sound = files[name]
+	local sound = sounds.files[name]
 	if sound then
 		if bgm ~= sound then
 			if bgm then
@@ -87,5 +91,7 @@ function sounds.stop_bgm()
 		bgm = nil
 	end
 end
+
+sounds.reload()
 
 return sounds

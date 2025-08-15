@@ -1,8 +1,7 @@
-local graphics = require "graphics"
-local sounds = require "sounds"
-local data = require "data"
+local graphics = require "pacman.graphics"
+local sounds = require "pacman.sounds"
 
-local mover = require "objects.mover"
+local mover = require "pacman.mover"
 
 local fruit = {}
 

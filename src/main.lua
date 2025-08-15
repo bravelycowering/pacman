@@ -1,5 +1,3 @@
-local data = require "data"
-
 -- get ffi
 local has_ffi, ffi = pcall(require, "ffi")
 local has_imgui, imgui = false, nil
@@ -35,15 +33,16 @@ end
 
 -- dont smooth graphics
 love.graphics.setDefaultFilter("nearest", "nearest")
-data.loadSprites()
+-- set font
+love.graphics.setFont(love.graphics.newFont("font.fnt"))
 
-local input = require "input"
+local input = require "pacman.input"
 
 function love.load()
 	if imgui then
 		imgui.love.Init()
 	end
-	State = require("objects.freeplay"):new()
+	State = require("pacman.freeplay"):new()
 	State:load(has_imgui)
 end
 

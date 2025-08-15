@@ -1,6 +1,6 @@
-local pacman = require "objects.pacman"
-local sounds = require "sounds"
-local input = require "input"
+local pacman = require "pacman.pacman"
+local sounds = require "pacman.sounds"
+local input = require "pacman.input"
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function pacman:update(maze, frightspeed)

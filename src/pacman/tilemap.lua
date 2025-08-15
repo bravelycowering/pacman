@@ -1,6 +1,48 @@
 local has_ffi, ffi = pcall(require, "ffi")
-local graphics = require "graphics"
-local data = require "data"
+local graphics = require "pacman.graphics"
+
+local poinames = {}
+local poivals = {}
+local poikeys = {}
+
+local function poi(name)
+	return function(id, formatstr)
+		local names = {}
+		local args = {}
+		if formatstr then
+			for m in formatstr:gmatch("%S+") do
+				local colon = m:find(":")
+				local k, v = m:sub(1, colon - 1), m:sub(colon + 1)
+				names[#names+1] = k
+				args[#args+1] = v
+			end
+		end
+		poinames[id] = name
+		poivals[id] = args
+		poikeys[id] = names
+	end
+end
+
+poi "pacman" (1, "subpos:I1")
+poi "ghost" (2, "subpos:I1 behavior:I1 palette:I1 direction:I1")
+poi "status" (3)
+poi "fruit" (4, "subpos:I1")
+poi "ghostbox" (5, "x2:I1 y2:I1")
+
+local poidebug = false
+if poidebug then
+	for key, value in pairs(poinames) do
+		print(key, value, ">"..table.concat(poivals[key]))
+		for i, v in ipairs(poivals[key]) do
+			local k = poikeys[key][i]
+			if type(k) == "table" then
+				print("", table.concat(k, ","), v)
+			else
+				print("", k, v)
+			end
+		end
+	end
+end
 
 local tilemap = {}
 
@@ -20,11 +62,11 @@ end
 function tilemap:index(x, y, region)
 	local index
 	if region == "footer" then
-		index = data.width - x - 1 + y * data.width
+		index = self.viewwidth - x - 1 + y * self.viewwidth
 	elseif region == "header" then
-		index = self.size - data.width * 2 + data.width - x - 1 + y * data.width
+		index = self.size - self.viewwidth * 2 + self.viewwidth - x - 1 + y * self.viewwidth
 	else
-		index = (self.width - x - 1) * self.height + y + data.width * 2
+		index = (self.width - x - 1) * self.height + y + self.viewwidth * 2
 	end
 	return index % self.size
 end
@@ -86,33 +128,22 @@ function tilemap:setpi(index, value)
 	self.palette[index % self.size] = value
 end
 
-local function getflag(number, index)
-	return (number * (1 ^ index)) % 2 == true
-end
-
-local function setflag(number, index, value)
-	if value then
-		if not getflag(number, index) then
-			return number + 1 ^ index
-		end
-	else
-		if getflag(number, index) then
-			return number - 1 ^ index
-		end
-	end
-	return number
-end
-
 function tilemap:new()
 	return setmetatable({}, {__index=self})
 end
 
+function tilemap:setviewport(viewwidth, viewheight)
+	self.viewwidth = viewwidth
+	self.viewheight = viewheight
+end
+
 function tilemap:load(width, height, palette, poi)
+	self.viewwidth = self.viewwidth or 0
 	if type(width) == "string" then
 		local str = width
 		local pos
 		self.width, self.height, palette, pos = love.data.unpack("> x I1 I1 I1", str)
-		self.size = self.width*self.height + data.width * 4
+		self.size = self.width*self.height + self.viewwidth * 4
 		self.tiles = newbuf(self.size)
 		local tiledata = str:sub(pos, pos + self.width*self.height)
 		pos = pos + self.width*self.height
@@ -126,22 +157,18 @@ function tilemap:load(width, height, palette, poi)
 ---@diagnostic disable-next-line: param-type-mismatch
 			x, y, dat, pos = love.data.unpack("> I1 I1 s1", str, pos)
 			local poi = {
-				name = data.poi[id],
+				name = poinames[id],
 				id = id,
 				x = x * 8,
 				y = y * 8,
 			}
-			local format = ">"..table.concat(data.poiargs[id])
+			local format = ">"..table.concat(poivals[id])
 ---@diagnostic disable-next-line: param-type-mismatch
 			local datunpacked = {love.data.unpack(format, dat)}
 			for i = 1, #datunpacked - 1 do
 				local value = datunpacked[i]
-				local key = data.poinames[id][i]
-				if type(key) == "table" then
-					for index, k in ipairs(key) do
-						poi[k] = getflag(value, index)
-					end
-				elseif key == "subpos" then
+				local key = poikeys[id][i]
+				if key == "subpos" then
 					poi.x = poi.x + value%8
 					poi.y = poi.y + math.floor(value / 8)
 				else
@@ -151,19 +178,19 @@ function tilemap:load(width, height, palette, poi)
 			self.poi[#self.poi+1] = poi
 		end
 		for i = 1, #tiledata do
-			local index = data.width * 2 + i - 1
+			local index = self.viewwidth * 2 + i - 1
 			self.tiles[index] = string.byte(tiledata, i)
 		end
-		for i = 0, data.width * 2 - 1 do
+		for i = 0, self.viewwidth * 2 - 1 do
 			self.tiles[i] = 64
 		end
-		for i = self.size - data.width * 2, self.size - 1 do
+		for i = self.size - self.viewwidth * 2, self.size - 1 do
 			self.tiles[i] = 64
 		end
 	else
 		self.width = width
 		self.height = height
-		self.size = width*height + data.width * 4
+		self.size = width*height + self.viewwidth * 4
 		self.tiles = newbuf(self.size)
 		self.poi = poi or {}
 		for i = 0, self.size-1 do
@@ -243,22 +270,16 @@ end
 
 function tilemap:save()
 	local str = {}
-	for index = data.width * 2, self.size - data.width * 2 - 1 do
+	for index = self.viewwidth * 2, self.size - self.viewwidth * 2 - 1 do
 		str[#str+1] = string.char(tilemap.geti(self, index))
 	end
 	for i = 1, #self.poi do
 		local poi = self.poi[i]
 		local id, x, y = poi.id, math.floor(poi.x/8), math.floor(poi.y/8)
-		local format = ">"..table.concat(data.poiargs[id])
+		local format = ">"..table.concat(poivals[id])
 		local args = {}
-		for index, key in ipairs(data.poinames[id]) do
-			if type(key) == "table" then
-				local v = 0
-				for index, k in ipairs(key) do
-					v = setflag(v, index, poi[k])
-				end
-				args[#args+1] = v
-			elseif key == "subpos" then
+		for index, key in ipairs(poikeys[id]) do
+			if key == "subpos" then
 				args[#args+1] = poi.x%8 + (poi.y%8) * 8
 			else
 				args[#args+1] = poi[key]
@@ -273,7 +294,7 @@ end
 function tilemap:xypairs(region)
 	local w, h
 	if region == "footer" or region == "header" then
-		w, h = data.width, 2
+		w, h = self.viewwidth, 2
 	else
 		w, h = self.width, self.height
 	end
@@ -289,7 +310,7 @@ end
 function tilemap:ipairs(region)
 	local w, h
 	if region == "footer" or region == "header" then
-		w, h = data.width, 2
+		w, h = self.viewwidth, 2
 	else
 		w, h = self.width, self.height
 	end

@@ -1,15 +1,14 @@
-local graphics = require "graphics"
-local sounds = require "sounds"
-local input = require "input"
-local data = require "data"
-local maze = require "objects.maze"
+local graphics = require "pacman.graphics"
+local sounds = require "pacman.sounds"
+local input = require "pacman.input"
+local maze = require "pacman.maze"
 
 -- kinda... need this for the editor...
 local imgui = require "cimgui"
 local ffi = require "ffi"
 local filedialog = require "filedialog"
 
-local tilemap = require "objects.tilemap"
+local tilemap = require "pacman.tilemap"
 
 local editor = {}
 
@@ -720,7 +719,7 @@ function editor:menubar()
 		print("new")
 	end
 	if clicked == "Quit to Menu" then
-		State = require "objects.freeplay"
+		State = require "pacman.freeplay"
 		State:load(true)
 	end
 	if clicked == "Exit" then
@@ -769,8 +768,9 @@ function editor:statusbar()
 end
 
 function editor:playwindow()
-	imgui.SetNextWindowSize({data.width * 8, data.height * 8 + 20})
-	imgui.PushStyleVar_Vec2(imgui.ImGuiStyleVar_WindowPadding, {})
+	local canvaswidth, canvasheight = self.maze:getcanvasdimensions()
+	imgui.SetNextWindowSize({canvaswidth + 2, canvasheight + 22})
+	imgui.PushStyleVar_Vec2(imgui.ImGuiStyleVar_WindowPadding, {1, 1})
 	if imgui.Begin("Play Test", nil,
 		imgui.ImGuiWindowFlags_NoScrollbar +
 		imgui.ImGuiWindowFlags_NoResize +

@@ -1,27 +1,13 @@
-local graphics = require "graphics"
-local sounds = require "sounds"
-local input = require "input"
-local data = require "data"
+local graphics = require "pacman.graphics"
+local sounds = require "pacman.sounds"
+local input = require "pacman.input"
 
-local tilemap = require "objects.tilemap"
-local pacman = require "objects.pacman"
-local ghost = require "objects.ghost"
-local fruit = require "objects.fruit"
-
-local canvas = love.graphics.newCanvas(data.width * 8, data.height * 8)
+local tilemap = require "pacman.tilemap"
+local pacman = require "pacman.pacman"
+local ghost = require "pacman.ghost"
+local fruit = require "pacman.fruit"
 
 local maze = {}
-
-maze.scorequads = {}
-for index, value in ipairs(graphics.quadColumn(4, 0, 0, 16, 8, 52, 32)) do
-	maze.scorequads[#maze.scorequads+1] = value
-end
-for index, value in ipairs(graphics.quadColumn(4, 16, 0, 16, 8, 52, 32)) do
-	maze.scorequads[#maze.scorequads+1] = value
-end
-for index, value in ipairs(graphics.quadColumn(4, 32, 0, 20, 8, 52, 32)) do
-	maze.scorequads[#maze.scorequads+1] = value
-end
 
 maze.fruittiles = { 224, 228, 232, 232, 240, 240, 244, 244, 248, 248, 236, 236, 252, 252, 252, 252, 252, 252, 252, 252 }
 maze.fruitpals = { 11, 12, 13, 13, 11, 11, 14, 14, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16 }
@@ -63,8 +49,6 @@ maze.ids.ghostbox = 226
 maze.ids.ghost = 240
 maze.ids.ghosts = 6
 
-local pausetext = graphics.text("PAUSED", 0.5, 0.5)
-
 local function getclamped(list, value)
 	return list[math.max(1, math.min(value, #list))]
 end
@@ -86,6 +70,12 @@ function maze:new()
 	return setmetatable({}, {__index=self})
 end
 
+local crtshader = love.graphics.newShader("crt.glsl")
+crtshader:send("distortionFactor", { 1.05, 1.05 })
+crtshader:send("scaleFactor", { 1.05, 1.05 })
+crtshader:send("feather", 0.1)
+crtshader:send("featheropacity", 0.25)
+
 function maze:load(settings)
 	input.showjoystick = true
 	self.paused = false
@@ -96,19 +86,31 @@ function maze:load(settings)
 	self.crtshader = settings.crtshader or false
 	self.testmode = settings.testmode or false
 	self.highscore = settings.highscore or 0
+	self.viewportwidth = settings.viewportwidth or 28
+	self.viewportheight = settings.viewportheight or 32
 	self.score = 0
 	self.pupblink = 0
 	self.statusstr = ""
 	self.statuspalstr = ""
-	self.canvas = canvas
+	self.canvas = love.graphics.newCanvas(self.viewportwidth * 8, (self.viewportheight + 4) * 8)
+	crtshader:send("dimensions", {self.canvas:getDimensions()})
 	self.mazesupplier = settings.mazesupplier
 	self:loadmaze(self:mazesupplier(self.level))
 	self:startmaze()
 end
 
+function maze:getviewportdimensions()
+	return self.viewportwidth * 8, self.viewportheight * 8
+end
+
+function maze:getcanvasdimensions()
+	return self.canvas:getDimensions()
+end
+
 function maze:loadmaze(tiles)
 	-- create tiles
 	self.tilemap = tilemap:new()
+	self.tilemap:setviewport(self.viewportwidth, self.viewportheight)
 	self.tilemap:load(tiles)
 	self.dots = 0
 	self.fruittrigger = 1
@@ -220,12 +222,12 @@ end
 
 function maze:positioncamera()
 	self.camerax, self.cameray = self.pacman:getpos()
-	local vpwidth, vpheight = data.width * 8, (data.height - 4) * 8
+	local vpwidth, vpheight = self:getviewportdimensions()
 	local mwidth, mheight = self.tilemap.width * 8, self.tilemap.height * 8
 	local minx = math.min(0, mwidth - vpwidth) / 2
 	local miny = math.min(0, mheight - vpheight) / 2
-	self.camerax = math.floor(math.max(minx, math.min(self.camerax - vpwidth / 2, (self.tilemap.width - data.width) * 8)))
-	self.cameray = math.floor(math.max(miny, math.min(self.cameray - vpheight / 2, (self.tilemap.height - data.height + 4) * 8)))
+	self.camerax = math.floor(math.max(minx, math.min(self.camerax - vpwidth / 2, (self.tilemap.width - self.viewportwidth) * 8)))
+	self.cameray = math.floor(math.max(miny, math.min(self.cameray - vpheight / 2, (self.tilemap.height - self.viewportheight) * 8)))
 end
 
 function maze:getcruiseelroy()
@@ -326,7 +328,7 @@ function maze:drawfruit()
 	if self.killscreen then
 		level = level % 256 -- enable the kill screen
 	end
-	local right = data.width - 2
+	local right = self.viewportwidth - 2
 	if level > 7 then
 		if level > #maze.fruittiles then
 			level = #maze.fruittiles
@@ -680,18 +682,11 @@ function maze:canmove(x, y, dx, dy)
 	return not self:getsolid(tilex, tiley)
 end
 
-local crtshader = love.graphics.newShader("crt.glsl")
-crtshader:send("distortionFactor", { 1.05, 1.05 })
-crtshader:send("scaleFactor", { 1.05, 1.05 })
-crtshader:send("feather", 0.1)
-crtshader:send("featheropacity", 0.25)
-crtshader:send("dimensions", {canvas:getDimensions()})
-
 function maze:drawtocanvas()
 	love.graphics.push()
 	local oc = love.graphics.getCanvas()
 	love.graphics.origin()
-	love.graphics.setCanvas(canvas)
+	love.graphics.setCanvas(self.canvas)
 	love.graphics.clear(0, 0, 0)
 	if self.wintimer < 15 and self.wintimer > 0 then
 		love.graphics.pop()
@@ -730,7 +725,7 @@ function maze:drawtocanvas()
 		for i = 1, #particle.text do
 			local quadno = particle.text:byte(i) - 48
 			graphics.setPalette(particle.palette)
-			graphics.draw(data.score[quadno], x, y)
+			graphics.draw(graphics.score[quadno], x, y)
 			if quadno == 16 then
 				x = x + 6
 			else
@@ -756,7 +751,7 @@ function maze:drawtocanvas()
 	love.graphics.translate(self.camerax, self.cameray)
 	love.graphics.translate(0, -16)
 	self.tilemap:draw("header")
-	love.graphics.translate(0, data.height * 8 - 16)
+	love.graphics.translate(0, self.viewportheight * 8 + 16)
 	self.tilemap:draw("footer")
 	love.graphics.pop()
 	love.graphics.setCanvas(oc)
@@ -772,17 +767,17 @@ function maze:draw()
 	else
 		love.graphics.setShader()
 	end
-	local width, height = canvas:getDimensions()
+	local width, height = self.canvas:getDimensions()
 	local lgw, lgh = love.graphics.getDimensions()
 	local scale = math.min(lgw / width, lgh / height)
 	local tx, ty = lgw - width * scale, lgh - height * scale
-	love.graphics.draw(canvas, tx / 2, ty / 2, 0, scale, scale)
+	love.graphics.draw(self.canvas, tx / 2, ty / 2, 0, scale, scale)
 	love.graphics.setShader()
 	if self.paused then
 		love.graphics.setColor(0, 0, 0, 0.5)
 		love.graphics.rectangle("fill", 0, 0, lgw, lgh)
 		love.graphics.setColor(1, 1, 1)
-		love.graphics.draw(pausetext, lgw / 2, lgh / 2, 0, 4, 4)
+		love.graphics.printf("PAUSED", 0, lgh / 2 - 14, lgw / 4, "center", 0, 4, 4)
 	end
 end
 

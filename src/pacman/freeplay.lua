@@ -1,8 +1,5 @@
-local graphics = require "graphics"
-local sounds = require "sounds"
-local input = require "input"
-local grid = require "grid"
-local data = require "data"
+local sounds = require "pacman.sounds"
+local input = require "pacman.input"
 
 local freeplay = {}
 
@@ -23,31 +20,24 @@ function freeplay:load(has_imgui)
 	self.CRTSHADER = false
 	self.MOD = 0
 	self.editor = has_imgui
+	self.selecty = 16
 	self:drawchoices()
 end
 
 local function value(v)
-	return tostring(v):upper()
+	return tostring(v)
 end
 
 function freeplay:drawchoices()
 	self.choices = {
 		"START GAME",
-		"LIVES ; "..value(self.LIVES),
-		"LEVEL ; "..value(self.LEVEL),
-		"BONUS LIFE ; "..value(self.BONUSLIFE),
-		"256 KILLSCREEN ; "..value(self.KILLSCREEN),
-		"CRT SHADER ; "..value(self.CRTSHADER),
-		"MOD ; "..value(mods[self.MOD]),
+		"LIVES: "..value(self.LIVES),
+		"LEVEL: "..value(self.LEVEL),
+		"BONUS LIFE: "..value(self.BONUSLIFE),
+		"256 KILLSCREEN: "..value(self.KILLSCREEN),
+		"CRT SHADER: "..value(self.CRTSHADER),
+		"MOD: "..value(mods[self.MOD]),
 	}
-	self.tiles = grid.new(28, 36, 64)
-	self.tiles:setstr(2, 2, "PAC;MAN@FREEPLAY")
-	for index, value in ipairs(self.choices) do
-		self.tiles:setstr(4, 4 + index * 2, value:gsub(" ", "@"))
-	end
-	if self.editor then
-		self.tiles:setstr(2, 4 + #self.choices * 2 + 4, "PRESS@B@FOR@EDITOR")
-	end
 end
 
 function freeplay:update()
@@ -140,7 +130,7 @@ function freeplay:update()
 				require("mods."..mods[self.MOD])
 			end
 			sounds.play_sfx("credit")
-			State = require("objects.maze"):new()
+			State = require("pacman.maze"):new()
 			local mazes = {}
 			for m in love.filesystem.read("assets/mazes.txt"):gmatch("[^\n\r]+") do
 				mazes[#mazes+1] = m
@@ -159,7 +149,7 @@ function freeplay:update()
 		end
 	end
 	if input.isPressed "b" and self.editor then
-		State = require("objects.editor"):new()
+		State = require("pacman.editor"):new()
 		State:load()
 		sounds.play_sfx("credit")
 	end
@@ -174,20 +164,23 @@ function freeplay:update()
 end
 
 function freeplay:draw()
-	love.graphics.setShader(graphics.shader)
-	for x, y, tile in self.tiles:xypairs() do
-		if y == 4 + self.choiceindex * 2 then
-			graphics.setPalette(15)
-			if x == 1 then
-				graphics.draw(data.pacmananim[2][2], 12, y*8 - 4)
-			end
+	local targetheight = #self.choices * 16 + 96
+	love.graphics.scale(love.graphics.getHeight() / targetheight)
+	love.graphics.print("PAC-MAN FREEPLAY", 16, 16)
+	for index, value in ipairs(self.choices) do
+		if index == self.choiceindex then
+			love.graphics.setColor(1, 1, 0)
 		else
-			graphics.setPalette(18)
-			if x == 1 and y%2 == 0 and y < #self.choices + 12 and y > self.choiceindex * 2 + 2 then
-				graphics.draw(graphics.tile(164), 16, y*8)
-			end
+			love.graphics.setColor(1, 1, 1)
 		end
-		graphics.draw(graphics.tile(tile), x*8, y*8)
+		love.graphics.print(value, 32, index * 16 + 32)
+	end
+	self.selecty = self.selecty - (self.selecty - self.choiceindex * 16) / 2
+	love.graphics.setColor(1, 0, 0)
+	love.graphics.print("\x10", 16, self.selecty + 32)
+	love.graphics.setColor(0.5, 0.5, 0.5)
+	if self.editor then
+		love.graphics.print("PRESS B FOR EDITOR", 16, 64 + #self.choices * 16)
 	end
 end
 

@@ -1,9 +1,8 @@
-local graphics = require "graphics"
-local sounds = require "sounds"
-local input = require "input"
-local data = require "data"
+local graphics = require "pacman.graphics"
+local sounds = require "pacman.sounds"
+local input = require "pacman.input"
 
-local mover = require "objects.mover"
+local mover = require "pacman.mover"
 
 local pacman = {}
 
@@ -80,9 +79,9 @@ function pacman:draw()
 	local x, y = self:getpos()
 	graphics.setPalette(15)
 	if self.dead and self.deathtimer > 0 then
-		graphics.draw(data.pacmandie[self.frame], x - 8, y - 8)
+		graphics.draw(graphics.pacmandie[self.frame], x - 8, y - 8)
 	else
-		graphics.draw(data.pacmananim[self.mover.lookdirection + 1][math.floor(self.frame)+1], x - 8, y - 8)
+		graphics.draw(graphics.pacmananim[self.mover.lookdirection + 1][math.floor(self.frame)+1], x - 8, y - 8)
 		if input.touchcontrols then
 			local dx, dy = -4, -4
 			if input.direction == 0 then
@@ -97,7 +96,7 @@ function pacman:draw()
 			if input.direction == 3 then
 				dy = -16
 			end
-			graphics.draw(data.mobilearrows[input.direction + 1], x + dx, y + dy)
+			graphics.draw(graphics.mobilearrows[input.direction + 1], x + dx, y + dy)
 		end
 	end
 end
