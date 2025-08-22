@@ -1,4 +1,4 @@
-local shader = love.graphics.newShader "shader.glsl"
+local shader = love.graphics.newShader "pacman/shader.glsl"
 
 local graphics = {}
 
@@ -80,7 +80,9 @@ end
 local function reload()
 	graphics.palettedata = love.image.newImageData "assets/palette.png"
 	graphics.palette = love.graphics.newImage(graphics.palettedata)
+	graphics.palette:setFilter("nearest", "nearest")
 	graphics.texture = love.graphics.newImage "assets/texture.png"
+	graphics.texture:setFilter("nearest", "nearest")
 	shader:send("palette", graphics.palette)
 	shader:send("palette_size", {graphics.palette:getDimensions()})
 

@@ -1,5 +1,5 @@
 local graphics = require "pacman.graphics"
-local sounds = require "pacman.sounds"
+local sounds = require "sounds"
 local input = require "pacman.input"
 
 local tilemap = require "pacman.tilemap"
@@ -39,6 +39,7 @@ maze.restartdotcount = {
 	{ 17 },
 	{ 92, 82, 32 }
 }
+maze.maxeatless = { 240, 240, 240, 240, 180 }
 maze.ids = {}
 maze.ids.dot = 164
 maze.ids.powerdot = 165
@@ -70,31 +71,59 @@ function maze:new()
 	return setmetatable({}, {__index=self})
 end
 
-local crtshader = love.graphics.newShader("crt.glsl")
-crtshader:send("distortionFactor", { 1.05, 1.05 })
-crtshader:send("scaleFactor", { 1.05, 1.05 })
-crtshader:send("feather", 0.1)
-crtshader:send("featheropacity", 0.25)
-
 function maze:load(settings)
-	input.showjoystick = true
+	if type(settings) ~= "table" then
+		settings = {}
+	end
+	self.eatless = 0
 	self.paused = false
 	self.level = settings.level or 1
 	self.lives = settings.lives or 3
 	self.killscreen = settings.killscreen or false
 	self.bonuslife = settings.bonuslife or 10000
-	self.crtshader = settings.crtshader or false
 	self.testmode = settings.testmode or false
 	self.highscore = settings.highscore or 0
 	self.viewportwidth = settings.viewportwidth or 28
 	self.viewportheight = settings.viewportheight or 32
+	self.demo = settings.demo
 	self.score = 0
 	self.pupblink = 0
 	self.statusstr = ""
 	self.statuspalstr = ""
-	self.canvas = love.graphics.newCanvas(self.viewportwidth * 8, (self.viewportheight + 4) * 8)
-	crtshader:send("dimensions", {self.canvas:getDimensions()})
-	self.mazesupplier = settings.mazesupplier
+	self.dotavgx = 0
+	self.dotavgy = 0
+	self.gameover = false
+	self.canvas = love.graphics.newCanvas(self.viewportwidth * 8 / love.window.getDPIScale(), (self.viewportheight + 4) * 8 / love.window.getDPIScale())
+	self.canvas:setFilter("nearest", "nearest")
+	if settings.mazesupplier then
+		self.mazesupplier = settings.mazesupplier
+	else
+		local mazedata = love.filesystem.read("pacman/maze")
+		function self:mazesupplier(level)
+			return mazedata
+		end
+	end
+	if settings.random then
+		self.random = settings.random
+	else
+		local success, randomsequence = pcall(love.filesystem.read, "pacman/random")
+		local index = 0
+		if type(randomsequence) == "string" then
+			function self.random()
+				index = index%#randomsequence + 1
+				return string.byte(randomsequence, index, index)
+			end
+		else
+			function self.random()
+				return math.random()
+			end
+		end
+	end
+	if settings.soundplayer then
+		self.soundplayer = settings.soundplayer
+	else
+		self.soundplayer = function(event, value) end
+	end
 	self:loadmaze(self:mazesupplier(self.level))
 	self:startmaze()
 end
@@ -105,6 +134,10 @@ end
 
 function maze:getcanvasdimensions()
 	return self.canvas:getDimensions()
+end
+
+function maze:getcanvas()
+	return self.canvas
 end
 
 function maze:loadmaze(tiles)
@@ -190,6 +223,7 @@ function maze:startmaze(skipintro, restart)
 	self.pacman:load(self, self.pacmanx, self.pacmany)
 	self.pacman.speed = getclamped(maze.pacmanspeed, self.level)
 	self.pacman.frightspeed = getclamped(maze.pacmanfrightspeed, self.level)
+	self.pacman:setdemo(self.demo)
 	self.scatter = 0
 	self.scattertime = 1
 	for index, poi in ipairs(self.objpois) do
@@ -215,9 +249,17 @@ function maze:startmaze(skipintro, restart)
 		self:drawlives()
 	else
 		self.starttimer = 255
-		sounds.play_sfx("start")
+		self.soundplayer("sfx", "start")
 	end
 	self:positioncamera()
+end
+
+function maze:play_sfx(name)
+	self.soundplayer("sfx", name)
+end
+
+function maze:stop_sfx(name)
+	self.soundplayer("stop", name)
 end
 
 function maze:positioncamera()
@@ -247,11 +289,11 @@ function maze:getpacman(x, y)
 	return px, py, self.pacman:getdirection()
 end
 
-function maze:getghost(t, x, y)
+function maze:getghost(t, x, y, fbx, fby, fbdir)
 	local nearest = math.huge
-	local gx, gy, gdir = love.math.random(0, self.tilemap.width * 8), love.math.random(0, self.tilemap.height * 8), love.math.random(1, 4)
+	local gx, gy, gdir, inghostbox = fbx or love.math.random(0, self.tilemap.width * 8), fby or love.math.random(0, self.tilemap.height * 8), fbdir or love.math.random(1, 4), true
 	for index, g in ipairs(self.ghosts) do
-		if g.behavior == t then
+		if (t == "fright" and g.fright > 0 and not g.inghostbox) or (t == "harm" and not (g.inghostbox and not g.exitingghostbox) and not g.eyes and g.fright <= 0) or g.behavior == t then
 			local _x, _y = g:getpos()
 			local dist = math.sqrt((x - _x)^2 + (y - _y)^2)
 			if dist < nearest then
@@ -259,10 +301,11 @@ function maze:getghost(t, x, y)
 				gx = _x
 				gy = _y
 				gdir = g:getdirection()
+				inghostbox = g.inghostbox
 			end
 		end
 	end
-	return gx, gy, gdir
+	return gx, gy, gdir, inghostbox
 end
 
 function maze:getdimensions()
@@ -371,7 +414,7 @@ end
 
 function maze:addscore(amt)
 	if self.score < self.bonuslife and self.score + amt >= self.bonuslife then
-		sounds.play_sfx("extend")
+		self.soundplayer("sfx", "extend")
 		self.lives = self.lives + 1
 		self:drawlives()
 	end
@@ -385,6 +428,7 @@ function maze:ghostcollisioncheck(ptx, pty, g)
 			self.ghostcombo = self.ghostcombo + 1
 			local gx, gy = g:getpos()
 			g:eaten()
+			self.soundplayer("sfx", "eat_ghost")
 			self.pausetimer = 60
 			self.effectpause = true
 			local bonus = 2^(self.ghostcombo) * 100
@@ -402,7 +446,7 @@ function maze:ghostcollisioncheck(ptx, pty, g)
 			self:addscore(bonus)
 		elseif not g.eyes and not g.inghostbox and not g.exitingghostbox and not g.iseaten then
 			if not self.pacman.dead then
-				sounds.stop_all()
+				self.soundplayer("stop")
 				self.pausetimer = 90
 				self.deathtimer = 200
 				self.pacman:kill()
@@ -411,26 +455,32 @@ function maze:ghostcollisioncheck(ptx, pty, g)
 	end
 end
 
+function maze:getpriorityghost()
+	local priorityindex = -1
+	local prioritytype = 256
+	for index, value in ipairs(self.ghosts) do
+		if value.inghostbox and not value.exitingghostbox and value.behavior < prioritytype then
+			priorityindex = index
+			prioritytype = value.behavior
+		end
+	end
+	return self.ghosts[priorityindex]
+end
+
 function maze:setpaused(paused)
 	if self.paused == paused then
 		return
 	end
 	self.paused = paused
-	if self.paused then
-		sounds.pause()
-	else
-		sounds.unpause()
-	end
+	self.soundplayer("pause", self.paused)
+end
+
+function maze:tick()
+	self:update()
+	self:drawtocanvas()
 end
 
 function maze:update()
-	if input.isPressed "escape" then
-		self:setpaused(not self.paused)
-	end
-	self:updategame()
-end
-
-function maze:updategame()
 	if self.paused then
 		return
 	end
@@ -445,11 +495,15 @@ function maze:updategame()
 	end
 	local anyeyes = false
 	local anyfright = false
+	local anyghostbox = false
 	for index, value in ipairs(self.ghosts) do
 		if value.eyes then
 			anyeyes = true
 		elseif value.fright > 0 then
 			anyfright = true
+		end
+		if value.inghostbox then
+			anyghostbox = true
 		end
 	end
 	if self.starttimer <= 0 and self.wintimer <= 0 then
@@ -471,6 +525,7 @@ function maze:updategame()
 					return
 				else
 					self.tilemap:setstr(self.statusx, self.statusy, "GAME@@OVER", nil, 1)
+					self.gameover = true
 				end
 			end
 			if not anyfright and self.scattertime > 0 then
@@ -488,6 +543,16 @@ function maze:updategame()
 				end
 			end
 			self.pacman:update(self, anyfright)
+			if anyghostbox then
+				self.eatless = self.eatless + 1
+				if self.eatless > getclamped(maze.maxeatless, self.level) then
+					self.eatless = 0
+					local g = self:getpriorityghost()
+					if g then
+						g:leaveghostbox(true)
+					end
+				end
+			end
 			if self.pacman.dead and #self.ghosts > 0 then
 				self.ghosts = {}
 			end
@@ -539,6 +604,7 @@ function maze:updategame()
 						f:update()
 						if (ptx == tx or ptx + 1 == tx) and pty == ty then
 							f:eaten()
+							self.soundplayer("sfx", "eat_fruit")
 							local bonus = getclamped(maze.fruitbonus, self.level)
 							local particle = {
 								x = fx,
@@ -562,20 +628,20 @@ function maze:updategame()
 				end
 			end
 			if anyeyes then
-				sounds.bgm("eyes")
+				self.soundplayer("bgm", "eyes")
 			elseif anyfright then
-				sounds.bgm("fright")
+				self.soundplayer("bgm", "fright")
 			else
 				if self.dots > self.totaldots * 0.5 then
-					sounds.bgm("siren0")
+					self.soundplayer("bgm", "siren0")
 				elseif self.dots > self.totaldots * 0.3 then
-					sounds.bgm("siren1")
+					self.soundplayer("bgm", "siren1")
 				elseif self.dots > self.totaldots * 0.2 then
-					sounds.bgm("siren2")
+					self.soundplayer("bgm", "siren2")
 				elseif self.dots > self.totaldots * 0.1 then
-					sounds.bgm("siren3")
+					self.soundplayer("bgm", "siren3")
 				elseif self.dots > 0 then
-					sounds.bgm("siren4")
+					self.soundplayer("bgm", "siren4")
 				end
 			end
 		end
@@ -618,19 +684,14 @@ end
 function maze:eat(tilex, tiley)
 	local tile = self.tilemap:get(tilex, tiley)
 	if tile == maze.ids.dot or tile == maze.ids.powerdot then
-		local priorityindex = -1
-		local prioritytype = 256
-		for index, value in ipairs(self.ghosts) do
-			if value.inghostbox and not value.exitingghostbox and value.behavior < prioritytype then
-				priorityindex = index
-				prioritytype = value.behavior
-			end
-			if tile == maze.ids.powerdot then
+		if tile == maze.ids.powerdot then
+			for index, value in ipairs(self.ghosts) do
 				value:frighten(self.power)
 			end
 		end
-		for index, value in ipairs(self.ghosts) do
-			value:doteaten(index == priorityindex)
+		local g = self:getpriorityghost()
+		if g then
+			g:leaveghostbox()
 		end
 		if tile == maze.ids.powerdot then
 			self.ghostcombo = 0
@@ -640,15 +701,15 @@ function maze:eat(tilex, tiley)
 		end
 		self.tilemap:set(tilex, tiley, 64)
 		if self.fruittrigger <= #maze.fruittriggers then
-			if self.dots/self.totaldots > maze.fruittriggers[self.fruittrigger] and (self.dots-1)/self.totaldots <= maze.fruittriggers[self.fruittrigger] then
-				print("fruit trigger:", self.fruittrigger)
+			if self.dots/self.totaldots > getclamped(maze.fruittriggers, self.fruittrigger) and (self.dots-1)/self.totaldots <= getclamped(maze.fruittriggers, self.fruittrigger) then
 				self:spawnfruit()
 				self.fruittrigger = self.fruittrigger + 1
 			end
 		end
 		self.dots = self.dots - 1
+		self.eatless = 0
 		if self.dots == 0 then
-			sounds.stop_all()
+			self.soundplayer("stop")
 			self.pausetimer = 1
 			self.wintimer = 240
 			self.pacman.frame = 0
@@ -682,10 +743,17 @@ function maze:canmove(x, y, dx, dy)
 	return not self:getsolid(tilex, tiley)
 end
 
+function maze:getdotavg()
+	return self.dotavgx, self.dotavgy
+end
+
 function maze:drawtocanvas()
-	love.graphics.push()
+	love.graphics.push("all")
+	love.graphics.setColor(1, 1, 1)
 	local oc = love.graphics.getCanvas()
 	love.graphics.origin()
+	local scale = 1/love.window.getDPIScale()
+	love.graphics.scale(scale)
 	love.graphics.setCanvas(self.canvas)
 	love.graphics.clear(0, 0, 0)
 	if self.wintimer < 15 and self.wintimer > 0 then
@@ -699,25 +767,40 @@ function maze:drawtocanvas()
 	love.graphics.translate(0, 16)
 	love.graphics.translate(-self.camerax, -self.cameray)
 	local scissorx, scissory = -self.camerax, 16 - self.cameray
-	love.graphics.setScissor(scissorx, scissory, self.tilemap.width * 8, self.tilemap.height * 8)
-	local winflash = false
-	if self.wintimer <= 112 and self.wintimer > 0 then
-		winflash = self.wintimer % 24 <= 12
-		if winflash then
-			graphics.setPalette(18)
-		end
-	end
+	love.graphics.setScissor(scissorx * scale, scissory * scale, self.tilemap.width * 8, self.tilemap.height * 8)
+	local winflash = self.wintimer % 24 <= 12
 	-- draw tiles
+	self.dotavgx = 0
+	self.dotavgy = 0
 	for x, y, tile, palette in self.tilemap:xypairs() do
+		if tile == maze.ids.powerdot or tile == maze.ids.dot then
+			self.dotavgx = self.dotavgx + x * 8 + 4
+			self.dotavgy = self.dotavgy + y * 8 + 4
+		end
 		if tile ~= maze.ids.powerdot or self.dotblink < 11 then
-			if not winflash then
+			local shoulddraw = true
+			if self.wintimer <= 112 and self.wintimer > 0 then
+				if palette == self.tilemap.defaultpalette then
+					if winflash then
+						graphics.setPalette(18)
+					else
+						graphics.setPalette(self.tilemap.defaultpalette)
+					end
+				else
+					shoulddraw = false
+				end
+			else
 				graphics.setPalette(palette)
 			end
-			graphics.draw(graphics.tile(tile), x * 8, y * 8)
+			if shoulddraw then
+				graphics.draw(graphics.tile(tile), x * 8, y * 8)
+			end
 		else
 			graphics.draw(graphics.tile(64), x * 8, y * 8)
 		end
 	end
+	self.dotavgx = self.dotavgx / self.dots
+	self.dotavgy = self.dotavgy / self.dots
 	graphics.setOpaque(false)
 	-- draw score particles
 	for index, particle in ipairs(self.pointparticles) do
@@ -748,37 +831,16 @@ function maze:drawtocanvas()
 	end
 	graphics.setOpaque(true)
 	love.graphics.setScissor()
-	love.graphics.translate(self.camerax, self.cameray)
-	love.graphics.translate(0, -16)
-	self.tilemap:draw("header")
-	love.graphics.translate(0, self.viewportheight * 8 + 16)
-	self.tilemap:draw("footer")
-	love.graphics.pop()
+	if not self.demo then
+		love.graphics.translate(self.camerax, self.cameray)
+		love.graphics.translate(0, -16)
+		self.tilemap:draw("header")
+		love.graphics.translate(0, self.viewportheight * 8 + 16)
+		self.tilemap:draw("footer")
+	end
 	love.graphics.setCanvas(oc)
 	love.graphics.setShader()
-end
-
-function maze:draw()
-	love.graphics.setColor(1, 1, 1)
-	self:drawtocanvas()
-	-- draw canvas centered
-	if self.crtshader then
-		love.graphics.setShader(crtshader)
-	else
-		love.graphics.setShader()
-	end
-	local width, height = self.canvas:getDimensions()
-	local lgw, lgh = love.graphics.getDimensions()
-	local scale = math.min(lgw / width, lgh / height)
-	local tx, ty = lgw - width * scale, lgh - height * scale
-	love.graphics.draw(self.canvas, tx / 2, ty / 2, 0, scale, scale)
-	love.graphics.setShader()
-	if self.paused then
-		love.graphics.setColor(0, 0, 0, 0.5)
-		love.graphics.rectangle("fill", 0, 0, lgw, lgh)
-		love.graphics.setColor(1, 1, 1)
-		love.graphics.printf("PAUSED", 0, lgh / 2 - 14, lgw / 4, "center", 0, 4, 4)
-	end
+	love.graphics.pop()
 end
 
 return maze

@@ -1,5 +1,4 @@
 local graphics = require "pacman.graphics"
-local sounds = require "pacman.sounds"
 
 local mover = require "pacman.mover"
 
@@ -59,8 +58,10 @@ function ghost:turnaround()
 	self.mover:setdirection((self.mover.direction + 2) % 4)
 end
 
-function ghost:doteaten(priority)
-	if priority then
+function ghost:leaveghostbox(instant)
+	if instant then
+		self.exitingghostbox = true
+	else
 		self.dotcounter = self.dotcounter + 1
 	end
 end
@@ -191,7 +192,7 @@ function ghost:update(maze)
 			end
 		end
 	end
-	self.frame = (self.frame + 0.25) % 2
+	self.frame = (self.frame + self.speed / 5) % 2
 end
 
 function ghost:gettarget(maze)
@@ -294,7 +295,6 @@ end
 function ghost:eaten(pindex)
 	self.fright = 0
 	self.iseaten = true
-	sounds.play_sfx("eat_ghost")
 end
 
 function ghost:frighten(time)
@@ -325,7 +325,7 @@ function ghost:draw(maze)
 			graphics.setPalette(self.palette)
 		end
 	end
-	graphics.draw(graphics.ghostanim[anim][math.floor(self.frame) + 1], x - 8, y - 8)
+	graphics.draw(graphics.ghostanim[(anim-1)%5+1][math.floor(self.frame%2) + 1], x - 8, y - 8)
 	if maze and false then
 		local tx, ty = self:gettarget(maze)
 		graphics.draw(graphics.tile(163), tx - 4, ty - 4)

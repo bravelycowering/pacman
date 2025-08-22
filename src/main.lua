@@ -1,13 +1,52 @@
+---@diagnostic disable: undefined-field
 -- get ffi
 local has_ffi, ffi = pcall(require, "ffi")
+local settings = require "settings"
 local has_imgui, imgui = false, nil
+
+local os = love.system.getOS()
+Mobile = os == "Android" or os == "iOS"
+
+function MobileOrientation()
+	local orientation = settings.getn("orientation", 0)
+	local width, height = love.window.getDesktopDimensions()
+	local min, max = math.min(width, height), math.max(width, height)
+	if orientation == 0 then
+		love.window.setMode(width, height, {
+			fullscreen = true,
+			resizable = true
+		})
+	elseif orientation == 1 then
+		love.window.setMode(min, max, {
+			fullscreen = true,
+			resizable = false
+		})
+	elseif orientation == 2 then
+		love.window.setMode(max, min, {
+			fullscreen = true,
+			resizable = false
+		})
+	end
+end
+
+love.window.setTitle("PAC-MAN")
+love.window.setIcon(love.image.newImageData("icon.png"))
+
+if Mobile then
+	MobileOrientation()
+else
+	love.window.setMode(224 * 6, 288 * 3, {
+		resizable = true,
+	})
+	love.window.setFullscreen(settings.getb("fullscreen", false))
+end
 
 if has_ffi then
 	ffi.cdef [[
 		void* malloc(size_t size);
 		void free(void* ptr);
 	]]
-	if ffi.os == "Windows" then
+	if os == "Windows" then
 		-- if ffi exists and in windows, make the window have a black titlebar like other windows apps
 		local dwmapi = ffi.load("dwmapi")
 		ffi.cdef [[
@@ -24,140 +63,59 @@ if has_ffi then
 		local hwnd = C.GetActiveWindow()
 		dwmapi.DwmSetWindowAttribute(hwnd, 20, ptr, size)
 	end
-	-- get imgui if it exists
+	-- get if imgui exists
 	has_imgui = package.searchpath("cimgui", package.cpath) ~= nil
-	if has_imgui then
-		imgui = require "cimgui"
+end
+
+local scenestack = {}
+
+function SwapScene(...)
+---@diagnostic disable-next-line: param-type-mismatch
+	love.event.push("swapscene")
+	scenestack[#scenestack+1] = {...}
+end
+
+local function immediateSwapScene(scene, ...)
+	if love.quit then
+---@diagnostic disable-next-line: redundant-parameter
+		love.quit()
+	end
+	love.graphics.reset()
+	if jit then
+		jit.on(true)
+	end
+	love.load = scene.load
+	love.update = scene.update
+	love.draw = scene.draw
+	for key, value in pairs(love.handlers) do
+		love[key] = scene[key]
+	end
+	if love.load then
+---@diagnostic disable-next-line: redundant-parameter
+		love.load(...)
 	end
 end
 
--- dont smooth graphics
-love.graphics.setDefaultFilter("nearest", "nearest")
--- set font
-love.graphics.setFont(love.graphics.newFont("font.fnt"))
-
-local input = require "pacman.input"
-
-function love.load()
-	if imgui then
-		imgui.love.Init()
-	end
-	State = require("pacman.freeplay"):new()
-	State:load(has_imgui)
+function love.handlers.swapscene()
+	local args = scenestack[#scenestack]
+	scenestack[#scenestack] = nil
+	immediateSwapScene(unpack(args))
 end
 
-function love.keypressed(key)
-	local capture = false
-	if imgui then
-		imgui.love.KeyPressed(key)
-    	capture = imgui.love.GetWantCaptureKeyboard()
-	end
-	input.keypressed(key, capture)
+function love.handlers.keypressed(...)
+	local key = ...
 	if key == "f11" then
 		love.window.setFullscreen(not love.window.getFullscreen(), "desktop")
-	end
-	if key == "r" and love.keyboard.isDown "lctrl" and love.keyboard.isDown "lshift" then
+	elseif key == "r" and love.keyboard.isDown "lctrl" and love.keyboard.isDown "lshift" then
 		love.event.quit("restart")
+	elseif love.keypressed then
+		return love.keypressed(...)
 	end
 end
 
-function love.keyreleased(key)
-	local capture = false
-	if imgui then
-		imgui.love.KeyReleased(key)
-    	capture = imgui.love.GetWantCaptureKeyboard()
+function love.load(args)
+	if args[1] == "MOBILE" then
+		Mobile = args[2] == "Y"
 	end
-	if not capture then
-		input.keyreleased(key)
-	end
-end
-
-function love.mousemoved(x, y, dx, dy)
-	local capture = false
-	if imgui then
-		imgui.love.MouseMoved(x, y)
-    	capture = imgui.love.GetWantCaptureMouse()
-	end
-	input.mousemoved(x, y, dx, dy)
-end
-
-function love.mousepressed(x, y, button, ...)
-	local capture = false
-	if imgui then
-		imgui.love.MousePressed(button)
-    	capture = imgui.love.GetWantCaptureMouse()
-	end
-	if not capture then
-		input.mousepressed(button)
-	end
-end
-
-function love.mousereleased(x, y, button, ...)
-	local capture = false
-	if imgui then
-		imgui.love.MouseReleased(button)
-    	capture = imgui.love.GetWantCaptureMouse()
-	end
-	input.mousereleased(button)
-end
-
-function love.wheelmoved(x, y)
-	local capture = false
-	if imgui then
-		imgui.love.WheelMoved(x, y)
-    	capture = imgui.love.GetWantCaptureMouse()
-	end
-	if not capture then
-		input.wheelmoved(x, y)
-	end
-end
-
-function love.textinput(t)
-	local capture = false
-	if imgui then
-   		imgui.love.TextInput(t)
-		capture = imgui.love.GetWantCaptureKeyboard()
-	end
-end
-
-function love.focus(f)
-	if imgui then
-    	imgui.love.Focus(f)
-	end
-end
-
-function love.quit()
-	if imgui then
-    	return imgui.love.Shutdown()
-	end
-end
-
-function love.touchpressed(id, x, y)
-	input.touchpressed(id, x, y)
-end
-
-function love.update(dt)
-	input.preupdate()
-	if imgui then
-		imgui.love.Update(dt)
-		imgui.NewFrame()
-	end
-	State:update()
-end
-
-function love.draw()
-	-- draw state
-	love.graphics.setColor(1, 1, 1)
-	love.graphics.setShader()
-	love.graphics.origin()
-	State:draw()
-	love.graphics.setColor(1, 1, 1)
-	love.graphics.setShader()
-	love.graphics.origin()
-	input.draw()
-	if imgui then
-		imgui.Render()
-    	imgui.love.RenderDrawLists()
-	end
-	input.update()
+	immediateSwapScene(require "scenes.menu")
 end

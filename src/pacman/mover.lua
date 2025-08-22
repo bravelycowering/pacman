@@ -1,5 +1,3 @@
-local rng = require "rng"
-
 local mover = {}
 
 function mover:new()
@@ -26,8 +24,12 @@ local function dxdy(direction, speed)
 		return -speed, 0
 	elseif direction == 3 then
 		return 0, -speed
+	else
+		return 0, 0
 	end
 end
+
+mover.dxdy = dxdy
 
 local function checksolid(maze, tx, ty, direction)
 	local dx, dy = dxdy(direction, 1)
@@ -38,6 +40,8 @@ end
 local function dist(x1, y1, x2, y2)
 	return math.sqrt((x1 - x2)^2 + (y1 - y2)^2)
 end
+
+mover.dist = dist
 
 function mover:setdirection(direction)
 	if self.lookdirection ~= direction and not checksolid(self.maze, math.floor(self.x / 8), math.floor(self.y / 8), direction) then
@@ -99,7 +103,7 @@ function mover:move(speed, random)
 	if changedtile then
 		local opposite_direction = (self.lookdirection + 2) % 4
 		if random then
-			local direction = rng() % 4
+			local direction = maze:random() % 4
 			if direction == opposite_direction or checksolid(maze, ntx, nty, direction) then
 				direction = (direction + 1) % 4
 			end

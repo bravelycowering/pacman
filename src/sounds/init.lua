@@ -5,9 +5,12 @@ sounds.files = {}
 
 function sounds.reload()
 	local files = {}
-	for index, value in ipairs(love.filesystem.getDirectoryItems("assets/sounds")) do
+	for index, value in ipairs(love.filesystem.getDirectoryItems("sounds")) do
 		local name = value:gsub("%.[^%.]+$", "")
-		files[name] = love.audio.newSource("assets/sounds/"..value, "static")
+		local success, sound = pcall(love.audio.newSource, "sounds/"..value, "static")
+		if success then
+			files[name] = sound
+		end
 	end
 	sounds.stop_all()
 	sounds.files = files

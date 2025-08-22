@@ -1,5 +1,5 @@
 local pacman = require "pacman.pacman"
-local sounds = require "pacman.sounds"
+local sounds = require "sounds"
 local input = require "pacman.input"
 
 ---@diagnostic disable-next-line: duplicate-set-field

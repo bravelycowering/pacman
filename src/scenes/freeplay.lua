@@ -1,16 +1,19 @@
-local sounds = require "pacman.sounds"
+local sounds = require "sounds"
 local input = require "pacman.input"
 
 local freeplay = {}
 
-local mods = {[0]="none", "accel", "randghosts"}
+local mods = {[0]="none", "accel", "randghosts", "corrupter"}
 
-function freeplay:new()
-	return setmetatable({}, {__index=self})
-end
+local self
 
-function freeplay:load(has_imgui)
-	input.showjoystick = true
+function freeplay.load(haseditor)
+	-- dont smooth graphics
+	love.graphics.setDefaultFilter("nearest", "nearest")
+	-- set font
+	love.graphics.setFont(love.graphics.newFont("ui/font.fnt"))
+	input.reset()
+	self = {}
 	self.choiceindex = 1
 	self.eatsound = 0
 	self.KILLSCREEN = false
@@ -19,16 +22,16 @@ function freeplay:load(has_imgui)
 	self.BONUSLIFE = 10000
 	self.CRTSHADER = false
 	self.MOD = 0
-	self.editor = has_imgui
+	self.editor = haseditor
 	self.selecty = 16
-	self:drawchoices()
+	freeplay.updatechoices()
 end
 
 local function value(v)
 	return tostring(v)
 end
 
-function freeplay:drawchoices()
+function freeplay.updatechoices()
 	self.choices = {
 		"START GAME",
 		"LIVES: "..value(self.LIVES),
@@ -40,7 +43,25 @@ function freeplay:drawchoices()
 	}
 end
 
-function freeplay:update()
+-- handle input
+function freeplay.keypressed(key)
+	input.keypressed(key)
+end
+
+function freeplay.keyreleased(key)
+	input.keyreleased(key)
+end
+
+function freeplay.touchpressed(id, x, y)
+	input.touchpressed(id, x, y)
+end
+
+function freeplay.touchreleased()
+	input.touchreleased()
+end
+
+function freeplay.update()
+	input.update()
 	local playsound = false
 	if input.isPressed "down" then
 		playsound = true
@@ -61,96 +82,104 @@ function freeplay:update()
 			if self.LIVES > 1 then
 				playsound = true
 				self.LIVES = self.LIVES - 1
-				self:drawchoices()
+				freeplay.updatechoices()
 			end
 		end
 		if self.choiceindex == 3 then
 			playsound = true
 			self.LEVEL = (self.LEVEL - 2) % 256 + 1
-			self:drawchoices()
+			freeplay.updatechoices()
 		end
 		if self.choiceindex == 4 then
 			if self.BONUSLIFE > 2500 then
 				playsound = true
 				self.BONUSLIFE = self.BONUSLIFE - 2500
-				self:drawchoices()
+				freeplay.updatechoices()
 			end
 		end
 		if self.choiceindex == 5 then
 			playsound = true
 			self.KILLSCREEN = not self.KILLSCREEN
-			self:drawchoices()
+			freeplay.updatechoices()
 		end
 		if self.choiceindex == 6 then
 			playsound = true
 			self.CRTSHADER = not self.CRTSHADER
-			self:drawchoices()
+			freeplay.updatechoices()
 		end
 		if self.choiceindex == 7 then
 			playsound = true
 			self.MOD = (self.MOD - 1) % (#mods + 1)
-			self:drawchoices()
+			freeplay.updatechoices()
 		end
 	end
 	if input.isPressed "right" then
 		if self.choiceindex == 2 then
 			playsound = true
 			self.LIVES = self.LIVES + 1
-			self:drawchoices()
+			freeplay.updatechoices()
 		end
 		if self.choiceindex == 3 then
 			playsound = true
 			self.LEVEL = self.LEVEL % 256 + 1
-			self:drawchoices()
+			freeplay.updatechoices()
 		end
 		if self.choiceindex == 4 then
 			playsound = true
 			self.BONUSLIFE = self.BONUSLIFE + 2500
-			self:drawchoices()
+			freeplay.updatechoices()
 		end
 		if self.choiceindex == 5 then
 			playsound = true
 			self.KILLSCREEN = not self.KILLSCREEN
-			self:drawchoices()
+			freeplay.updatechoices()
 		end
 		if self.choiceindex == 6 then
 			playsound = true
 			self.CRTSHADER = not self.CRTSHADER
-			self:drawchoices()
+			freeplay.updatechoices()
 		end
 		if self.choiceindex == 7 then
 			playsound = true
 			self.MOD = (self.MOD + 1) % (#mods + 1)
-			self:drawchoices()
+			freeplay.updatechoices()
 		end
 	end
 	if input.isPressed "a" or input.isPressed "left" or input.isPressed "right" then
 		if self.choiceindex == 1 then
 			if self.MOD > 0 then
-				require("mods."..mods[self.MOD])
+				if mods[self.MOD] == "all" then
+					for i = 1, #mods - 1 do
+						require("mods."..mods[i])
+					end
+				else
+					require("mods."..mods[self.MOD])
+				end
 			end
 			sounds.play_sfx("credit")
-			State = require("pacman.maze"):new()
-			local mazes = {}
-			for m in love.filesystem.read("assets/mazes.txt"):gmatch("[^\n\r]+") do
-				mazes[#mazes+1] = m
+			local mazesupplier
+			local mazestxt = love.filesystem.read("assets/mazes.txt")
+			if mazestxt then
+				local mazes = {}
+				for m in love.filesystem.read("assets/mazes.txt"):gmatch("[^\n\r]+") do
+					mazes[#mazes+1] = m
+				end
+				function mazesupplier(m, level)
+					return love.filesystem.read("assets/mazes/"..mazes[((level-1)%#mazes) + 1])
+				end
 			end
-			State:load {
+			SwapScene(require "scenes.game", {
 				killscreen = self.KILLSCREEN,
 				lives = self.LIVES,
 				level = self.LEVEL,
 				bonuslife = self.BONUSLIFE,
 				crtshader = self.CRTSHADER,
-				mazesupplier = function(m, level)
-					return love.filesystem.read("assets/mazes/"..mazes[((level-1)%#mazes) + 1])
-				end,
-			}
-			self:drawchoices()
+				mazesupplier = mazesupplier,
+			})
 		end
 	end
 	if input.isPressed "b" and self.editor then
-		State = require("pacman.editor"):new()
-		State:load()
+		SwapScene(require "scenes.editor")
 		sounds.play_sfx("credit")
 	end
 	if playsound then
@@ -163,9 +192,10 @@ function freeplay:update()
 	end
 end
 
-function freeplay:draw()
+function freeplay.draw()
+	love.graphics.setColor(1, 1, 1)
 	local targetheight = #self.choices * 16 + 96
-	love.graphics.scale(love.graphics.getHeight() / targetheight)
+	love.graphics.scale(math.min(love.graphics.getHeight() / targetheight, love.graphics.getWidth() / 200))
 	love.graphics.print("PAC-MAN FREEPLAY", 16, 16)
 	for index, value in ipairs(self.choices) do
 		if index == self.choiceindex then
@@ -182,6 +212,7 @@ function freeplay:draw()
 	if self.editor then
 		love.graphics.print("PRESS B FOR EDITOR", 16, 64 + #self.choices * 16)
 	end
+	input.draw()
 end
 
 return freeplay
