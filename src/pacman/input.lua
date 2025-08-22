@@ -1,20 +1,25 @@
 local ball = love.graphics.newImage "joystick/ball-line.png"
 local base = love.graphics.newImage "joystick/base-line.png"
+ball:setFilter("nearest", "nearest")
+base:setFilter("nearest", "nearest")
 
 local input = {}
 
-input.time = 0
-input.direction = 1
-input.keys = {}
-input.showjoystick = false
 input.touchcontrols = false
+
 input.color = {0, 0, 1}
-input.x = 100
-input.y = 100
 input.scale = 4
 input.deadspace = 25
-input.wheeldx = 0
-input.wheeldy = 0
+
+function input.reset()
+	input.time = 0
+	input.direction = 1
+	input.keys = {}
+	input.x = 100
+	input.y = 100
+	input.wheeldx = 0
+	input.wheeldy = 0
+end
 
 function input.wheelmoved(dx, dy)
 	input.wheeldx = dx
@@ -123,19 +128,19 @@ end
 
 function input.mousereleased(button)
 	input.keys[button] = nil
-	if input.showjoystick and input.touchcontrols then
-		input.keys.left = nil
-		input.keys.right = nil
-		input.keys.up = nil
-		input.keys.down = nil
-	end
 end
 
 function input.touchpressed(id, x, y)
 	input.touchcontrols = true
-	if input.showjoystick and input.touchcontrols then
-		input.x, input.y = x, y
-	end
+	input.x, input.y = x, y
+end
+
+function input.touchreleased()
+	input.touchcontrols = true
+	input.keys.left = nil
+	input.keys.right = nil
+	input.keys.up = nil
+	input.keys.down = nil
 end
 
 local function pickmax(tbl, size)
@@ -151,8 +156,8 @@ local function pickmax(tbl, size)
 	return max
 end
 
-function input.preupdate()
-	if input.touchcontrols and input.showjoystick then
+function input.update()
+	if input.touchcontrols then
 		local x, y = love.mouse.getPosition()
 		if love.mouse.isDown(1) then
 			local dist = math.sqrt((x - input.x)^2 + (y - input.y)^2)
@@ -204,16 +209,13 @@ function input.preupdate()
 	end
 end
 
-function input.update()
+function input.draw()
 	input.wheeldx = 0
 	input.wheeldy = 0
 	input.mousedx = 0
 	input.mousedy = 0
 	input.time = input.time + 1
-end
-
-function input.draw()
-	if input.showjoystick and input.touchcontrols and #love.touch.getTouches() > 0 then
+	if input.touchcontrols and #love.touch.getTouches() > 0 then
 		local dx, dy = 8, 8
 		if input.keys.left then
 			dx = 16
@@ -227,10 +229,15 @@ function input.draw()
 		if input.keys.down then
 			dy = 0
 		end
+		love.graphics.push("all")
+		love.graphics.reset()
 		love.graphics.setColor(input.color)
 		love.graphics.draw(base, input.x, input.y, 0, input.scale, input.scale, 16, 16)
 		love.graphics.draw(ball, input.x, input.y, 0, input.scale, input.scale, dx, dy)
+		love.graphics.pop()
 	end
 end
+
+input.reset()
 
 return input

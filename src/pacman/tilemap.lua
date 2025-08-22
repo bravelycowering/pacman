@@ -1,6 +1,8 @@
 local has_ffi, ffi = pcall(require, "ffi")
 local graphics = require "pacman.graphics"
 
+-- has_ffi = false
+
 local poinames = {}
 local poivals = {}
 local poikeys = {}
@@ -50,8 +52,11 @@ local newbuf
 
 if has_ffi then
 	function newbuf(size)
-		local dat = ffi.new("unsigned char[?]", size)
-		return dat
+		-- ffi.new causes seg fault in some cases on linux?? use malloc instead
+		-- TODO: check if malloc fails. it shouldnt but yknow. just in case.
+		local ptr = ffi.cast("unsigned char*", ffi.C.malloc(size))
+		ffi.gc(ptr, ffi.C.free)
+		return ptr
 	end
 else
 	function newbuf(size)
@@ -202,7 +207,7 @@ function tilemap:load(width, height, palette, poi)
 		self.palette[i] = palette or 0
 	end
 	self.defaultpalette = palette or 0
-	if type(width) == "string" then
+	if type(width) == "string" and false then
 		local str = width
 		local saved = self:save()
 		if str ~= saved then

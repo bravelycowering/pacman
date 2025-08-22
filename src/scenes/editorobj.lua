@@ -1,5 +1,5 @@
 local graphics = require "pacman.graphics"
-local sounds = require "pacman.sounds"
+local sounds = require "sounds"
 local input = require "pacman.input"
 local maze = require "pacman.maze"
 
@@ -16,7 +16,7 @@ function editor:new()
 	return setmetatable({}, {__index=self})
 end
 
-function editor:load(tiles)
+function editor:load()
 	-- create tiles
 	self.tilemap = tilemap:new()
 	self.tilemap:load(28, 32)
@@ -719,8 +719,7 @@ function editor:menubar()
 		print("new")
 	end
 	if clicked == "Quit to Menu" then
-		State = require "pacman.freeplay"
-		State:load(true)
+		SwapScene(require "scenes.menu", true)
 	end
 	if clicked == "Exit" then
 		love.event.quit(0)
@@ -779,13 +778,12 @@ function editor:playwindow()
 		imgui.Image(imgui.love.TextureRef(self.maze.canvas), {self.maze.canvas:getDimensions()})
 	end
 	self.maze:setpaused(not imgui.IsWindowFocused())
-	self.maze:updategame()
 	if self.maze.paused then
 		love.graphics.setColor(0.5, 0.5, 0.5)
 	else
 		love.graphics.setColor(1, 1, 1)
 	end
-	self.maze:drawtocanvas()
+	self.maze:tick()
 	imgui.End()
 	imgui.PopStyleVar()
 end

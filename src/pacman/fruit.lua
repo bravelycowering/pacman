@@ -1,5 +1,4 @@
 local graphics = require "pacman.graphics"
-local sounds = require "pacman.sounds"
 
 local mover = require "pacman.mover"
 
@@ -38,7 +37,6 @@ function fruit:update()
 end
 
 function fruit:eaten()
-	sounds.play_sfx("eat_fruit")
 	self.time = 0
 end
 
