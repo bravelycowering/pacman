@@ -65,6 +65,7 @@ function game.load(setup)
 	input.reset()
 	ui.reset()
 	self = {}
+	self.enteringname = false
 	self.gameovered = false
 	shader = shaders[settings.getn("shader", 0)]
 	self.maze = maze:new()
@@ -124,8 +125,6 @@ function game.textinput(text)
 		self.scores[self.placement].name = string.sub(self.scores[self.placement].name..namechar, -3)
 	end
 end
-
-love.keyboard.setTextInput(true)
 
 function game.update()
 	input.update()
