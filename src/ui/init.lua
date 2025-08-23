@@ -8,6 +8,13 @@ for index, value in ipairs(love.filesystem.getDirectoryItems("ui/icons")) do
 end
 ui.icons = icons
 
+local achievements = {}
+for i = 0, 25 do
+	achievements[i] = love.graphics.newImage("ui/achievements/achv_"..tostring(i)..".png")
+	achievements[i]:setFilter("nearest", "nearest")
+end
+ui.achievements = achievements
+
 local scale = 1
 local cursorx = 0
 local cursory = 0
@@ -209,7 +216,11 @@ function ui.button(icon, label, w, enabled)
 		label = table.concat(label)
 	else
 		label = tostring(label)
-		id = label
+		if icon then
+			id = icon
+		else
+			id = label
+		end
 	end
 	local text = newText(font, label)
 	local width, height = text:getDimensions()

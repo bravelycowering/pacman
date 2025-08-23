@@ -44,7 +44,7 @@ function editor:update()
 		sounds.stop_all()
 	end
 	if self.fullscreen then
-		self.maze:updategame()
+		self.maze:tick()
 		return
 	end
 	local dx, dy = input.getWheelDelta()
@@ -88,7 +88,13 @@ local transform = love.math.newTransform()
 
 function editor:draw()
 	if self.fullscreen then
-		self.maze:draw()
+		-- position calculation
+		local width, height = self.maze:getcanvasdimensions()
+		local lgw, lgh = love.graphics.getDimensions()
+		local scale = math.min(lgw / width, lgh / height)
+		local tx, ty = lgw - width * scale, lgh - height * scale
+		-- draw canvas centered
+		love.graphics.draw(self.maze:getcanvas(), tx / 2, ty / 2, 0, scale, scale)
 		return
 	end
 	local px = 1 / scale
@@ -719,7 +725,7 @@ function editor:menubar()
 		print("new")
 	end
 	if clicked == "Quit to Menu" then
-		SwapScene(require "scenes.menu", true)
+		SwapScene(require "scenes.menu")
 	end
 	if clicked == "Exit" then
 		love.event.quit(0)
@@ -746,6 +752,25 @@ function editor:menubar()
 			testmode = true,
 			mazesupplier = function()
 				return tiles
+			end,
+			soundplayer = function (event, value)
+				if event == "pause" then
+					if value then
+						sounds.pause()
+					else
+						sounds.unpause()
+					end
+				elseif event == "bgm" then
+					sounds.bgm(value)
+				elseif event == "sfx" then
+					sounds.play_sfx(value)
+				elseif event == "stop" then
+					if value then
+						sounds.stop_sfx(value)
+					else
+						sounds.stop_all()
+					end
+				end
 			end
 		}
 		if not self.fullscreen then

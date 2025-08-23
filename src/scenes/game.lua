@@ -1,15 +1,32 @@
 local maze = require "pacman.maze"
 local input = require "pacman.input"
 local ui = require "ui"
+local lang = require "lang"
 local sounds = require "sounds"
 local shaders = require "shaders"
 local settings = require "settings"
+local normalfont
+local monofont
 
 local game = {}
 
 local self
 
 local shader
+
+local function makescoretext(placement, scores)
+	local text = {}
+	for index, value in ipairs(scores) do
+		local scorestr = tostring(value.score)
+		if index == placement then
+			text[#text+1] = {1, 1, 0}
+		else
+			text[#text+1] = {1, 1, 1}
+		end
+		text[#text+1] = lang.translate("scores.entry", value.name, string.rep(" ", 8 - #scorestr)..scorestr).."\n\n"
+	end
+	return text
+end
 
 local function shaderSend(uniform, ...)
 	if shader and shader:hasUniform(uniform) then
@@ -22,7 +39,9 @@ function game.load(setup)
 	-- dont smooth graphics
 	love.graphics.setDefaultFilter("nearest", "nearest")
 	-- set font
-	love.graphics.setFont(love.graphics.newFont("ui/font.fnt"))
+	normalfont = love.graphics.newFont("ui/font.fnt")
+	monofont = love.graphics.newFont("ui/font-mono.fnt")
+	love.graphics.setFont(normalfont)
 	-- sound player
 	setup.soundplayer = function (event, value)
 		if event == "pause" then
@@ -46,6 +65,7 @@ function game.load(setup)
 	input.reset()
 	ui.reset()
 	self = {}
+	self.gameovered = false
 	shader = shaders[settings.getn("shader", 0)]
 	self.maze = maze:new()
 	self.maze:load(setup)
@@ -62,10 +82,25 @@ function game.keypressed(key)
 end
 
 function game.keyreleased(key)
+	if self.enteringname then
+		local namestr = self.scores[self.placement].name
+		if #namestr > 0 then
+			if key == "return" or key == "kpenter" then
+				self.scores[self.placement].name = namestr..string.rep(" ", 3 - #namestr)
+				self.enteringname = false
+				love.keyboard.setTextInput(false)
+				self.scoretext = makescoretext(self.placement, self.scores)
+				settings.setscores("classic", self.scores)
+			elseif key == "backspace" then
+				self.scores[self.placement].name = string.sub(namestr, 1, #namestr - 1)
+			end
+		end
+	end
 	input.keyreleased(key)
 end
 
 function game.touchpressed(id, x, y)
+	love.keyboard.setTextInput(self.enteringname)
 	input.touchpressed(id, x, y)
 	input.touchcontrols = not (self.maze.paused or self.maze.gameover)
 end
@@ -82,6 +117,15 @@ end
 function game.mousereleased(x, y)
 	ui.released(x, y)
 end
+
+function game.textinput(text)
+	if self.enteringname then
+		local namechar = text:sub(1, 1):upper()
+		self.scores[self.placement].name = string.sub(self.scores[self.placement].name..namechar, -3)
+	end
+end
+
+love.keyboard.setTextInput(true)
 
 function game.update()
 	input.update()
@@ -118,34 +162,56 @@ function game.draw()
 		love.graphics.rectangle("fill", 0, 0, lgw, lgh)
 		love.graphics.setColor(1, 1, 1)
 		local headerscale = ui.scale() * 4
-		love.graphics.printf("PAUSED", headerscale, lgh / 2 - 14 * headerscale, lgw / headerscale, "center", 0, headerscale, headerscale)
-		if ui.button(ui.icons.pacman, "RESUME", buttonw) then
+		love.graphics.printf(lang.translate("game.paused"), headerscale, lgh / 2 - 14 * headerscale, lgw / headerscale, "center", 0, headerscale, headerscale)
+		if ui.button(ui.icons.pacman, lang.translate("game.resume"), buttonw) then
 			game.keypressed("escape")
 			sounds.play_sfx("credit")
 		end
-		if ui.button(ui.icons.died, "ABANDON GAME", buttonw) then
+		if ui.button(ui.icons.died, lang.translate("game.quit"), buttonw) then
 			sounds.stop_all()
 			sounds.play_sfx("credit")
 			SwapScene(require "scenes.menu")
 		end
 	elseif self.maze.gameover then
+		if not self.gameovered then
+			self.gameovered = true
+			self.scores, self.placement = settings.getscores("classic", "", self.maze.score)
+			self.enteringname = self.placement <= 5
+			love.keyboard.setTextInput(self.enteringname)
+			self.highscore = self.scores[1].score
+			self.scoretext = makescoretext(self.placement, self.scores)
+		end
 		love.graphics.setColor(0, 0, 0, 0.75)
 		love.graphics.rectangle("fill", 0, 0, lgw, lgh)
-		love.graphics.setColor(1, 0, 0)
 		local headerscale = ui.scale() * 4
-		love.graphics.printf("GAME  OVER", headerscale, headerscale * 16, lgw / headerscale, "center", 0, headerscale, headerscale)
-		love.graphics.setColor(1, 1, 1)
-		local scoretext
-		if self.maze.score == self.maze.highscore then
-			scoretext = {{1, 1, 1}, "SCORE: "..self.maze.score.."\n\n", {1, 1, 0}, "NEW HIGH SCORE!"}
+		if self.enteringname then
+			local headertext
+			love.graphics.setColor(1, 1, 0)
+			if self.placement == 1 then
+				headertext = lang.translate("gameover.newhigh")
+			else
+				headertext = lang.translate("gameover.newtop", self.placement)
+			end
+			love.graphics.printf(headertext, headerscale, headerscale * 16, lgw / headerscale, "center", 0, headerscale, headerscale)
+			love.graphics.setColor(1, 1, 1)
+			love.graphics.setFont(monofont)
+			local namestr = self.scores[self.placement].name
+			local scorestr = tostring(self.maze.score)
+			love.graphics.printf({{1, 1, 1}, lang.translate("gameover.entername").."\n\n"..lang.translate("gameover.score", string.rep(" ", 8 - #scorestr)..scorestr).."\n\n"..lang.translate("gameover.name", "     "..namestr), {0.5, 0.5, 0.5}, string.rep("_", 3 - #namestr)}, headerscale / 2, headerscale * 8 + lgh / 4, lgw / headerscale * 2, "center", 0, headerscale / 2, headerscale / 2)
+			love.graphics.setFont(normalfont)
 		else
-			scoretext = "SCORE: "..self.maze.score
-		end
-		love.graphics.printf(scoretext, headerscale / 2, headerscale * 8 + lgh / 4, lgw / headerscale * 2, "center", 0, headerscale / 2, headerscale / 2)
-		if ui.button(ui.icons.died, "MAIN MENU", buttonw) then
-			sounds.stop_all()
-			sounds.play_sfx("credit")
-			SwapScene(require "scenes.menu")
+			love.graphics.setColor(1, 0, 0)
+			love.graphics.printf(lang.translate("gameover.title"), headerscale, headerscale * 16, lgw / headerscale, "center", 0, headerscale, headerscale)
+			love.graphics.setColor(1, 1, 1)
+			love.graphics.setFont(monofont)
+			love.graphics.printf(self.scoretext, headerscale / 2, headerscale * 8 + lgh / 4, lgw / headerscale * 2, "center", 0, headerscale / 2, headerscale / 2)
+			love.graphics.setFont(normalfont)
+			ui.cursor(nil, ch - 72)
+			if ui.button(ui.icons.died, lang.translate("gameover.quit"), buttonw) then
+				sounds.stop_all()
+				sounds.play_sfx("credit")
+				SwapScene(require "scenes.menu")
+			end
 		end
 	else
 		if lgw > lgh then

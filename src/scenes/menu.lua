@@ -1,4 +1,5 @@
 local ui = require "ui"
+local lang = require "lang"
 local sounds = require "sounds"
 local shaders = require "shaders"
 local settings = require "settings"
@@ -24,12 +25,19 @@ bg3:setFilter("nearest", "nearest")
 local bg4 = love.graphics.newImage("ui/bg4.png")
 bg4:setFilter("nearest", "nearest")
 
-local boolstr = {
-	[true] = "ON",
-	[false] = "OFF",
-}
+local function translate(key, ...)
+	return lang.translate(currentmenu.."."..key, ...)
+end
 
-local orientationstr = { [0] = "AUTO", "PORTRAIT", "LANDSCAPE" }
+local function makescoretext()
+	local text = ""
+	local scores = settings.getscores("classic")
+	for index, value in ipairs(scores) do
+		local scorestr = tostring(value.score)
+		text = text..lang.translate("scores.entry", value.name, string.rep(" ", 8 - #scorestr)..scorestr).."\n\n"
+	end
+	return text
+end
 
 local function gradientMesh(...)
 
@@ -77,6 +85,10 @@ function menu.load(m)
 end
 
 function menu.keypressed(key)
+	if key == "f12" then
+		SwapScene(require "scenes.editor")
+		sounds.play_sfx("credit")
+	end
 	if key == "escape" then
 		escapepressed = true
 	end
@@ -209,50 +221,45 @@ function menu.gui()
 	end
 	local backbtn
 	if currentmenu == "main" then
-		if ui.button(ui.icons.pacman, "PLAY", width) then
+		if ui.button(ui.icons.pacman, translate "play", width) then
 			nextmenu = "begingame"
 			sounds.play_sfx("credit")
 		end
-		if ui.button(ui.icons.cherry, "SCORES", width) then
+		if ui.button(ui.icons.cherry, translate "scores", width) then
 			nextmenu = "scores"
 			sounds.play_sfx("credit")
-			scoretext = ""
-			local scores = settings.getscores("classic")
-			for index, value in ipairs(scores) do
-				local scorestr = tostring(value.score)
-				scoretext = scoretext..value.name.." --- "..string.rep(" ", 8 - #scorestr)..scorestr.."\n\n"
-			end
+			scoretext = makescoretext()
 		end
-		if ui.button(ui.icons.galaxian, "ACHIEVEMENTS", width, false) then
+		if ui.button(ui.icons.galaxian, translate "achievements", width, false) then
 			nextmenu = "achievements"
 			sounds.play_sfx("credit")
 		end
-		if ui.button(ui.icons.key, "SETTINGS", width) then
+		if ui.button(ui.icons.key, translate "settings", width) then
 			nextmenu = "settings"
 			sounds.play_sfx("credit")
 		end
 	elseif currentmenu == "settings" then
 		local sh = settings.getn("shader", 0)
-		if ui.button(ui.icons.video, {"SHADER: ", shaders.names[sh]}, width) then
+		if ui.button(ui.icons.video, translate("shader", lang.translate("shader."..tostring(sh))), width) then
 			settings.set("shader", (sh+1) % (#shaders + 1))
 			sounds.play_sfx("eat_dot_0")
 		end
 		if Mobile then
 			local orientation = settings.getn("orientation", 0)
-			if ui.button(ui.icons.orientation, {"ORIENTATION: ", orientationstr[orientation]}, width) then
+			if ui.button(ui.icons.orientation, translate("orientation", lang.translate("orientation."..tostring(orientation))), width) then
 				settings.set("orientation", (orientation + 1) % 3)
 				MobileOrientation()
 				sounds.play_sfx("eat_dot_0")
 			end
 		else
 			local fulls = love.window.getFullscreen()
-			if ui.button(ui.icons.fullscreen, {"FULLSCREEN: ", boolstr[fulls]}, width) then
+			if ui.button(ui.icons.fullscreen, translate("fullscreen", lang.translate("boolean."..tostring(fulls))), width) then
 				settings.set("fullscreen", not fulls)
 				love.window.setFullscreen(not fulls)
 				sounds.play_sfx("eat_dot_0")
 			end
 		end
-		if ui.button(ui.icons.died, "RESET SAVED DATA", width) then
+		if ui.button(ui.icons.died, translate "resetdata", width) then
 			local orientation = settings.getn("orientation", 0)
 			settings.reset()
 			settings.set("orientation", orientation)
@@ -276,7 +283,7 @@ function menu.gui()
 		else
 			ui.cursor(cwidth / 2 - 56, cheight - 96)
 		end
-		if escapepressed or ui.button(nil, "BACK") then
+		if escapepressed or ui.button(nil, translate "back") then
 			sounds.play_sfx("credit")
 			nextmenu = backbtn
 		end

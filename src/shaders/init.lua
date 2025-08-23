@@ -4,8 +4,4 @@ crt:send("scaleFactor", { 1.05, 1.05 })
 crt:send("feather", 0.1)
 crt:send("featheropacity", 0.25)
 
-local names = { [0] = "NONE", "CRT" }
-local shaders = { crt }
-shaders.names = names
-
-return shaders
+return { crt }
