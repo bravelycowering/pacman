@@ -7,29 +7,28 @@ local poinames = {}
 local poivals = {}
 local poikeys = {}
 
-local function poi(name)
-	return function(id, formatstr)
-		local names = {}
-		local args = {}
-		if formatstr then
-			for m in formatstr:gmatch("%S+") do
-				local colon = m:find(":")
-				local k, v = m:sub(1, colon - 1), m:sub(colon + 1)
-				names[#names+1] = k
-				args[#args+1] = v
-			end
+local function poi(name, id, formatstr)
+	local names = {}
+	local args = {}
+	if formatstr then
+		for m in formatstr:gmatch("%S+") do
+			local colon = m:find(":")
+			local k, v = m:sub(1, colon - 1), m:sub(colon + 1)
+			names[#names+1] = k
+			args[#args+1] = v
 		end
-		poinames[id] = name
-		poivals[id] = args
-		poikeys[id] = names
 	end
+	poinames[id] = name
+	poivals[id] = args
+	poikeys[id] = names
 end
 
-poi "pacman" (1, "subpos:I1")
-poi "ghost" (2, "subpos:I1 behavior:I1 palette:I1 direction:I1")
-poi "status" (3)
-poi "fruit" (4, "subpos:I1")
-poi "ghostbox" (5, "x2:I1 y2:I1")
+poi("pacman", 1, "subpos:I1")
+poi("ghost", 2, "subpos:I1 behavior:I1 palette:I1 direction:I1")
+poi("status", 3)
+poi("fruit", 4, "subpos:I1")
+poi("ghostbox", 5, "x2:I1 y2:I1")
+poi("palette", 6, "x2:I1 y2:I1 palette:I1")
 
 local poidebug = false
 if poidebug then
@@ -83,7 +82,9 @@ end
 
 function tilemap:set(x, y, value, region, palette)
 	local index = tilemap.index(self, x, y, region)
-	self.tiles[index] = value
+	if value then
+		self.tiles[index] = value
+	end
 	if palette then
 		self.palette[index] = palette
 	end

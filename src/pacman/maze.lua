@@ -172,6 +172,13 @@ function maze:loadmaze(tiles)
 		if poi.name == "ghost" then
 			self.objpois[#self.objpois+1] = poi
 		end
+		if poi.name == "palette" then
+			for x = poi.x / 8, poi.x2 - 1 do
+				for y = poi.y / 8, poi.y2 - 1 do
+					self.tilemap:set(x, y, nil, nil, poi.palette)
+				end
+			end
+		end
 		if poi.name == "ghostbox" then
 			local ghostbox = {
 				x1 = poi.x,
@@ -190,13 +197,10 @@ function maze:loadmaze(tiles)
 			}
 		end
 	end
-	-- replace placeholder tiles
+	-- count dots
 	for x, y, tile in self.tilemap:xypairs() do
 		if tile == maze.ids.dot or tile == maze.ids.powerdot then
 			self.dots = self.dots + 1
-		end
-		if tile == 160 then
-			self.tilemap:set(x, y, 160, nil, 2)
 		end
 	end
 	self.totaldots = self.dots

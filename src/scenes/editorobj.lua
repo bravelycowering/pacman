@@ -326,6 +326,7 @@ local poiEnum = {
 	"status",
 	"fruit",
 	"ghostbox",
+	"palette",
 }
 
 local behaviorEnum = {
@@ -485,7 +486,7 @@ function editor:poiwindow()
 					-- get/set color of poi option
 					local c = {1, 1, 1, 1}
 					local l = poi.name
-					if poi.name == "ghost" then
+					if poi.name == "ghost" or poi.name == "palette" then
 						c = graphics.getPaletteColor(poi.palette, 3)
 					elseif poi.name == "ghostbox" then
 						c = {0, 0, 1, 1}
@@ -573,6 +574,11 @@ function editor:poiwindow()
 							poi.palette = 1
 							poi.behavior = 1
 						end
+						if name == "palette" then
+							poi.x2 = 1
+							poi.y2 = 1
+							poi.palette = 1
+						end
 						if name == "ghostbox" then
 							poi.x2 = 1
 							poi.y2 = 1
@@ -594,7 +600,7 @@ function editor:poiwindow()
 				imgui.SeparatorText("Position")
 				if poi.name == "pacman" or poi.name == "ghost" or poi.name == "fruit" then
 					poi.x, poi.y = positionwidget("pos", poi.x, poi.y, false)
-				elseif poi.name == "ghostbox" then
+				elseif poi.name == "ghostbox" or poi.name == "palette" then
 					imgui.Text("From")
 					poi.x, poi.y = positionwidget("pos", poi.x, poi.y, true)
 					imgui.Text("To")
@@ -603,7 +609,7 @@ function editor:poiwindow()
 				else
 					poi.x, poi.y = positionwidget("pos", poi.x, poi.y, true)
 				end
-				-- extra ghost data
+				-- extra poi specific data
 				if poi.name == "ghost" then
 					imgui.SeparatorText("Properties")
 					if imgui.BeginCombo("direction", dirEnum[poi.direction]) then
@@ -622,6 +628,9 @@ function editor:poiwindow()
 						end
 						imgui.EndCombo()
 					end
+					poi.palette = paletteselector(poi.palette)
+				elseif poi.name == "palette" then
+					imgui.SeparatorText("Properties")
 					poi.palette = paletteselector(poi.palette)
 				end
 				imgui.EndChild()
@@ -821,7 +830,7 @@ function editor:gui()
 	imgui.SetNextWindowSize({250, 440}, imgui.ImGuiCond_FirstUseEver)
 	imgui.SetNextWindowPos({100, 100}, imgui.ImGuiCond_FirstUseEver)
 	imgui.SetNextWindowSizeConstraints({100, 100}, {math.huge, math.huge})
-	imgui.Begin("Maze Information")
+	imgui.Begin("Maze Information", nil, imgui.ImGuiWindowFlags_NoResize + imgui.ImGuiWindowFlags_AlwaysAutoResize)
 	self.brush = tileWidget(self.brush, "current brush ("..self.brush..")")
 	imgui.SeparatorText("Resize")
 	prop_width = inputInt("width", prop_width or self.tilemap.width, 1, 255)
