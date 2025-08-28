@@ -471,7 +471,7 @@ local function positionwidget(id, x, y, tilelocked)
 		imgui.SetMouseCursor(2)
 	end
 	imgui.EndTabBar()
-	return nx, ny
+	return nx, ny, nx - x, ny - y
 end
 
 local function sliderInt(label, current, min, max, display)
@@ -494,6 +494,7 @@ local anchorn = {
 }
 
 local selected
+local movermode = true
 
 function editor:poiwindow()
 	imgui.SetNextWindowSizeConstraints({200, 100}, {math.huge, math.huge})
@@ -633,9 +634,14 @@ function editor:poiwindow()
 					poi.x, poi.y = positionwidget("pos", poi.x, poi.y, false)
 				elseif poi.name == "ghostbox" or poi.name == "palette" or poi.name == "metazone" then
 					imgui.Text("From")
-					poi.x, poi.y = positionwidget("pos", poi.x, poi.y, true)
+					local dx, dy
+					poi.x, poi.y, dx, dy = positionwidget("pos", poi.x, poi.y, true)
+					movermode = inputCheckbox("Move both", movermode)
+					if not movermode then
+						dx, dy = 0, 0
+					end
 					imgui.Text("To")
-					poi.x2, poi.y2 = positionwidget("pos2", poi.x2 * 8, poi.y2 * 8, true)
+					poi.x2, poi.y2 = positionwidget("pos2", poi.x2 * 8 + dx, poi.y2 * 8 + dy, true)
 					poi.x2, poi.y2 = poi.x2/8, poi.y2/8
 				else
 					poi.x, poi.y = positionwidget("pos", poi.x, poi.y, true)
@@ -643,7 +649,8 @@ function editor:poiwindow()
 				-- metazone data
 				if poi.name == "metazone" then
 					imgui.SeparatorText("Flags")
-					for key, value in pairs(tilemap.metaflags) do
+					for index, key in pairs(tilemap.metaflagnames) do
+						local value = tilemap.metaflags[key]
 						local current = flags.check(poi.meta, value)
 						local new = inputCheckbox(key, current)
 						if current ~= new then

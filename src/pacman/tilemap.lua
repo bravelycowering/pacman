@@ -132,6 +132,12 @@ tilemap.metaflags = {
 	disallow_horizontal = 4,
 }
 
+tilemap.metaflagnames = {
+	"tunnel",
+	"disallow_vertical",
+	"disallow_horizontal",
+}
+
 function tilemap:getmeta(x, y, flag)
 	return flags.check(self:getmi(self:index(x, y)), flag)
 end
