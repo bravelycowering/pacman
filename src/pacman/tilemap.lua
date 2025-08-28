@@ -1,4 +1,5 @@
 local has_ffi, ffi = pcall(require, "ffi")
+local flags = require "flags"
 local graphics = require "pacman.graphics"
 
 -- has_ffi = false
@@ -29,6 +30,7 @@ poi("status", 3)
 poi("fruit", 4, "subpos:I1")
 poi("ghostbox", 5, "x2:I1 y2:I1")
 poi("palette", 6, "x2:I1 y2:I1 palette:I1")
+poi("metazone", 7, "x2:I1 y2:I1 meta:I1")
 
 local poidebug = false
 if poidebug then
@@ -82,9 +84,7 @@ end
 
 function tilemap:set(x, y, value, region, palette)
 	local index = tilemap.index(self, x, y, region)
-	if value then
-		self.tiles[index] = value
-	end
+	self.tiles[index] = value
 	if palette then
 		self.palette[index] = palette
 	end
@@ -122,6 +122,20 @@ function tilemap:geti(index)
 	return self.tiles[index % self.size]
 end
 
+function tilemap:getmi(index)
+	return self.meta[index % self.size]
+end
+
+tilemap.metaflags = {
+	tunnel = 1,
+	disallow_vertical = 2,
+	disallow_horizontal = 4,
+}
+
+function tilemap:getmeta(x, y, flag)
+	return flags.check(self:getmi(self:index(x, y)), flag)
+end
+
 function tilemap:seti(index, value)
 	self.tiles[index % self.size] = value
 end
@@ -132,6 +146,10 @@ end
 
 function tilemap:setpi(index, value)
 	self.palette[index % self.size] = value
+end
+
+function tilemap:setmi(index, value)
+	self.meta[index % self.size] = value
 end
 
 function tilemap:new()
@@ -202,6 +220,10 @@ function tilemap:load(width, height, palette, poi)
 		for i = 0, self.size-1 do
 			self.tiles[i] = 64
 		end
+	end
+	self.meta = newbuf(self.size)
+	for i = 0, self.size-1 do
+		self.meta[i] = 0
 	end
 	self.palette = newbuf(self.size)
 	for i = 0, self.size-1 do

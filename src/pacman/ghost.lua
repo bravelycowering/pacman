@@ -55,6 +55,7 @@ end
 
 function ghost:turnaround()
 	if self.eyes or self.inghostbox then return end
+	self.mover.lookdirection = self.mover.direction
 	self.mover:setdirection((self.mover.direction + 2) % 4)
 end
 
@@ -201,12 +202,12 @@ function ghost:gettarget(maze)
 	if self.behavior == 1 then
 		if maze:getscatter() and maze:getcruiseelroy() == 0 then
 			local width, height = maze:getdimensions()
-			return width - 16, -8
+			return width - 16, -32
 		end
 		return px, py
 	elseif self.behavior == 2 then
 		if maze:getscatter() then
-			return 16, -8
+			return 16, -32
 		end
 		if pdir < 3 then
 			px = px - 32

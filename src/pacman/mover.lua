@@ -13,6 +13,7 @@ function mover:load(maze, x, y, direction)
 	self.targetx = 0
 	self.targety = 0
 	self.targeting = true
+	self.forceintersection = false
 end
 
 local function dxdy(direction, speed)
@@ -100,7 +101,7 @@ function mover:move(speed, random)
 	local ntx, nty = math.floor(nx / 8), math.floor(ny / 8)
 	local changedtile = tx ~= ntx or ty ~= nty
 	local passedcenter = (x >= cx and nx < cx) or (x <= cx and nx > cx) or (y >= cy and ny < cy) or (y <= cy and ny > cy)
-	if changedtile then
+	if changedtile or self.forceintersection then
 		local opposite_direction = (self.lookdirection + 2) % 4
 		if random then
 			local direction = maze:random() % 4
@@ -123,7 +124,7 @@ function mover:move(speed, random)
 			for i = 0, 3 do
 				local ddx, ddy = dxdy(i, 1)
 				local distance = dist(self.targetx, self.targety, ntx + ddx, nty + ddy)
-				if i ~= opposite_direction and distance <= nearest and not checksolid(maze, ntx, nty, i) then
+				if i ~= opposite_direction and distance <= nearest and not checksolid(maze, ntx, nty, i) and maze:cantravel(x, y, i) then
 					direction = i
 					nearest = distance
 				end
@@ -131,7 +132,7 @@ function mover:move(speed, random)
 			self.lookdirection = direction
 		end
 	end
-	if passedcenter then
+	if passedcenter or self.forceintersection then
 		if self.lookdirection ~= self.direction then
 			self.direction = self.lookdirection
 			if dx ~= 0 then
@@ -149,9 +150,11 @@ function mover:move(speed, random)
 		end
 		if checksolid(maze, tx, ty, self.direction) then
 			self:setpos(cx, cy)
+			self.forceintersection = true
 			return false
 		end
 	end
+	self.forceintersection = false
 	if dx ~= 0 then
 		if ny > cy + speed then
 			ny = ny - speed

@@ -10,3 +10,7 @@
 - saved high scores
 - read data from assets folder
 - moving fruit like mrs pac man
+
+### bugs
+- game crashes if current maze contains no ghost box but does contain ghosts
+	- solution: if theres no ghost box, eaten ghosts are simply removed from play

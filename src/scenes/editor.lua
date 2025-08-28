@@ -17,6 +17,7 @@ function editor.load()
 	-- dont smooth graphics
 	love.graphics.setDefaultFilter("nearest", "nearest")
 	imgui.love.Init()
+	love.keyboard.setTextInput(true)
 	self = require("scenes.editorobj"):new()
 	self:load()
 end
@@ -96,6 +97,7 @@ function editor.focus(f)
 end
 
 function editor.quit()
+	love.keyboard.setTextInput(false)
 	if imgui then
     	return imgui.love.Shutdown()
 	end

@@ -1,6 +1,7 @@
 local graphics = require "pacman.graphics"
 local sounds = require "sounds"
 local input = require "pacman.input"
+local flags = require "flags"
 local maze = require "pacman.maze"
 
 -- kinda... need this for the editor...
@@ -105,7 +106,21 @@ function editor:draw()
 	love.graphics.applyTransform(transform)
 	love.graphics.setShader(graphics.shader)
 	graphics.setOpaque(true)
-	self.tilemap:draw(nil, self.tilemap.defaultpalette)
+	for x = 0, self.tilemap.width - 1 do
+		for y = 0, self.tilemap.height - 1 do
+			self.tilemap:setpi(self.tilemap:index(x, y), self.tilemap.defaultpalette)
+		end
+	end
+	for poi in self.tilemap:poiter() do
+		if poi.name == "palette" then
+			for x = poi.x / 8, poi.x2 - 1 do
+				for y = poi.y / 8, poi.y2 - 1 do
+					self.tilemap:setpi(self.tilemap:index(x, y), poi.palette)
+				end
+			end
+		end
+	end
+	self.tilemap:draw()
 	love.graphics.setShader()
 	self:gui()
 	if self.canedit and not love.mouse.isDown(1) and not love.mouse.isDown(2) then
@@ -122,11 +137,11 @@ function editor:draw()
 	end
 end
 
-local function inputDouble(label, current, ...)
-	local size = assert(ffi.sizeof("double"))
-	local ptr = ffi.cast("double *", ffi.C.malloc(size))
+local function inputCheckbox(label, current)
+	local size = assert(ffi.sizeof("bool"))
+	local ptr = ffi.cast("bool *", ffi.C.malloc(size))
 	ptr[0] = current
-	imgui.InputDouble(label, ptr, ...)
+	imgui.Checkbox(label, ptr)
 	local val = ptr[0]
 	ffi.C.free(ptr)
 	return val
@@ -327,6 +342,7 @@ local poiEnum = {
 	"fruit",
 	"ghostbox",
 	"palette",
+	"metazone",
 }
 
 local behaviorEnum = {
@@ -342,8 +358,16 @@ local function changealpha(vec4, alpha)
 	return {vec4[1], vec4[2], vec4[3], vec4[4] * alpha}
 end
 
+local function paltext(pal)
+	if pal == 0 then
+		return "None"
+	else
+		return "Index: "..pal
+	end
+end
+
 local function paletteselector(current)
-	if imgui.BeginCombo("palette", "Index: "..current, imgui.ImGuiComboFlags_HeightLargest) then
+	if imgui.BeginCombo("palette", paltext(current), imgui.ImGuiComboFlags_HeightLargest) then
 		local max = graphics.getMaxPalette()
 		for i = 0, max do
 			local c = graphics.getPaletteColor(i, 3)
@@ -352,7 +376,7 @@ local function paletteselector(current)
 				c = {1, 1, 1, 1}
 			end
 			imgui.PushStyleColor_Vec4(imgui.ImGuiCol_Text, c)
-			if imgui.Selectable_Bool("Index: "..i, current == i) then
+			if imgui.Selectable_Bool(paltext(i), current == i) then
 				current = i
 				imgui.CloseCurrentPopup()
 			end
@@ -487,13 +511,19 @@ function editor:poiwindow()
 					local c = {1, 1, 1, 1}
 					local l = poi.name
 					if poi.name == "ghost" or poi.name == "palette" then
-						c = graphics.getPaletteColor(poi.palette, 3)
+						if poi.palette == 0 then
+							c = {1, 1, 1, 1}
+						else
+							c = graphics.getPaletteColor(poi.palette, 3)
+						end
 					elseif poi.name == "ghostbox" then
 						c = {0, 0, 1, 1}
 					elseif poi.name == "pacman" then
 						c = {1, 1, 0, 1}
 					elseif poi.name == "fruit" then
-						c = {0, 0, 0, 0}
+						c = {1, 0, 0.5, 1}
+					elseif poi.name == "metazone" then
+						c = {0, 1, 0, 1}
 					end
 					c[1] = c[1] * 0.5 + 0.5
 					c[2] = c[2] * 0.5 + 0.5
@@ -575,11 +605,12 @@ function editor:poiwindow()
 							poi.behavior = 1
 						end
 						if name == "palette" then
-							poi.x2 = 1
-							poi.y2 = 1
-							poi.palette = 1
+							poi.palette = 0
 						end
-						if name == "ghostbox" then
+						if name == "metazone" then
+							poi.meta = 0
+						end
+						if name == "ghostbox" or name == "palette" or name == "metazone" then
 							poi.x2 = 1
 							poi.y2 = 1
 						end
@@ -600,7 +631,7 @@ function editor:poiwindow()
 				imgui.SeparatorText("Position")
 				if poi.name == "pacman" or poi.name == "ghost" or poi.name == "fruit" then
 					poi.x, poi.y = positionwidget("pos", poi.x, poi.y, false)
-				elseif poi.name == "ghostbox" or poi.name == "palette" then
+				elseif poi.name == "ghostbox" or poi.name == "palette" or poi.name == "metazone" then
 					imgui.Text("From")
 					poi.x, poi.y = positionwidget("pos", poi.x, poi.y, true)
 					imgui.Text("To")
@@ -608,6 +639,17 @@ function editor:poiwindow()
 					poi.x2, poi.y2 = poi.x2/8, poi.y2/8
 				else
 					poi.x, poi.y = positionwidget("pos", poi.x, poi.y, true)
+				end
+				-- metazone data
+				if poi.name == "metazone" then
+					imgui.SeparatorText("Flags")
+					for key, value in pairs(tilemap.metaflags) do
+						local current = flags.check(poi.meta, value)
+						local new = inputCheckbox(key, current)
+						if current ~= new then
+							poi.meta = flags.set(poi.meta, value, new)
+						end
+					end
 				end
 				-- extra poi specific data
 				if poi.name == "ghost" then

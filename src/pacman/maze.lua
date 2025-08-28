@@ -175,7 +175,14 @@ function maze:loadmaze(tiles)
 		if poi.name == "palette" then
 			for x = poi.x / 8, poi.x2 - 1 do
 				for y = poi.y / 8, poi.y2 - 1 do
-					self.tilemap:set(x, y, nil, nil, poi.palette)
+					self.tilemap:setpi(self.tilemap:index(x, y), poi.palette)
+				end
+			end
+		end
+		if poi.name == "metazone" then
+			for x = poi.x / 8, poi.x2 - 1 do
+				for y = poi.y / 8, poi.y2 - 1 do
+					self.tilemap:setmi(self.tilemap:index(x, y), poi.meta)
 				end
 			end
 		end
@@ -335,7 +342,18 @@ function maze:inghostbox(x, y)
 end
 
 function maze:intunnel(x, y)
-	return self.tilemap:get(math.floor(x/8), math.floor(y/8)) == maze.ids.tunnel
+	return self.tilemap:getmeta(math.floor(x/8), math.floor(y/8), tilemap.metaflags.tunnel)
+end
+
+function maze:cantravel(x, y, direction)
+	local flag = 0
+	if direction%2 == 0 then
+		flag = tilemap.metaflags.disallow_horizontal
+	elseif direction%2 == 1 then
+		flag = tilemap.metaflags.disallow_vertical
+	end
+	if flag == 0 then return true end
+	return not self.tilemap:getmeta(math.floor(x/8), math.floor(y/8), flag)
 end
 
 function maze:drawlives()
