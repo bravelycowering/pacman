@@ -329,7 +329,9 @@ end
 
 function maze:getghostbox(x, y)
 	local ghostbox = getnearest(self.ghostboxes, x, y)
-	return ghostbox.x, ghostbox.y, ghostbox
+	if ghostbox ~= nil then
+		return ghostbox.x, ghostbox.y, ghostbox
+	end
 end
 
 function maze:inghostbox(x, y)
@@ -580,17 +582,34 @@ function maze:update()
 			end
 		end
 		local ptx, pty = self.pacman:gettilepos()
-		for index, value in ipairs(self.ghosts) do
-			if not value.eyes then
-				if turnaround then
-					value:turnaround()
+		do -- point ghost group handling
+			local i = 1
+			local del = 0
+			local len = #self.ghosts
+			while i <= len do
+				if i + del <= #self.ghosts then
+					local value = self.ghosts[i + del]
+					self.ghosts[i] = value
+					if not value.eyes then
+						if turnaround then
+							value:turnaround()
+						end
+					end
+					if value.iseaten and #self.ghostboxes == 0 then
+						del = del + 1
+					else
+						if self.pausetimer <= 0 and self:ghostcollisioncheck(ptx, pty, value) then return end
+						if self.pausetimer <= 0 or (value.eyes and self.effectpause) then
+							value:update(self)
+						end
+						if self.pausetimer <= 0 and self:ghostcollisioncheck(ptx, pty, value) then return end
+						i = i + 1
+					end
+				else
+					self.ghosts[i] = nil
+					i = i + 1
 				end
 			end
-			if self.pausetimer <= 0 and self:ghostcollisioncheck(ptx, pty, value) then return end
-			if self.pausetimer <= 0 or (value.eyes and self.effectpause) then
-				value:update(self)
-			end
-			if self.pausetimer <= 0 and self:ghostcollisioncheck(ptx, pty, value) then return end
 		end
 		do -- point particle group handling
 			local i = 1
