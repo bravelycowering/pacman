@@ -55,8 +55,7 @@ end
 
 function ghost:turnaround()
 	if self.eyes or self.inghostbox then return end
-	self.mover.lookdirection = self.mover.direction
-	self.mover:setdirection((self.mover.direction + 2) % 4)
+	self.mover.lookdirection = (self.mover.lookdirection+2)%4
 end
 
 function ghost:leaveghostbox(instant)
@@ -209,35 +208,37 @@ function ghost:gettarget(maze)
 		if maze:getscatter() then
 			return 16, -32
 		end
-		if pdir < 3 then
-			px = px - 32
-		end
-		if pdir == 2 then
-			py = py - 32
-		end
-		if pdir == 3 then
+		if pdir == 0 then
 			px = px + 32
 		end
-		if pdir == 4 then
+		if pdir == 1 then
 			py = py + 32
+		end
+		if pdir == 2 then
+			px = px - 32
+		end
+		if pdir == 3 then
+			px = px - 32
+			py = py - 32
 		end
 		return px, py
 	elseif self.behavior == 3 then
 		if maze:getscatter() then
 			local width, height = maze:getdimensions()
-			return width, height
+			return width - 8, height
 		end
-		if pdir < 3 then
-			px = px - 16
-		end
-		if pdir == 2 then
-			py = py - 16
-		end
-		if pdir == 3 then
+		if pdir == 0 then
 			px = px + 16
 		end
-		if pdir == 4 then
+		if pdir == 1 then
 			py = py + 16
+		end
+		if pdir == 2 then
+			px = px - 16
+		end
+		if pdir == 3 then
+			px = px - 16
+			py = py - 16
 		end
 		local blinkyx, blinkyy, blinkydir = maze:getghost(1, x, y)
 		return px + (px - blinkyx), py + (py - blinkyy)
@@ -329,8 +330,8 @@ function ghost:draw(maze)
 	graphics.draw(graphics.ghostanim[(anim-1)%5+1][math.floor(self.frame%2) + 1], x - 8, y - 8)
 	if maze and false then
 		local tx, ty = self:gettarget(maze)
-		graphics.draw(graphics.tile(163), tx - 4, ty - 4)
-		graphics.draw(graphics.tile(self.behavior), tx - 4, ty - 4)
+		graphics.draw(graphics.tile(163), math.floor(tx/8)*8, math.floor(ty/8)*8)
+		graphics.draw(graphics.tile(self.behavior), math.floor(tx/8)*8, math.floor(ty/8)*8)
 	end
 end
 

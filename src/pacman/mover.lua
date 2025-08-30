@@ -88,9 +88,6 @@ function mover:setpos(x, y)
 end
 
 function mover:move(speed, random)
-	if self.direction%2 == self.lookdirection%2 then
-		self.direction = self.lookdirection
-	end
 	local maze = self.maze
 	local x, y = self.x, self.y
 	local dx, dy = dxdy(self.direction, speed)
