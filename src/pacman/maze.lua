@@ -95,6 +95,7 @@ function maze:load(settings)
 	self.gameover = false
 	self.canvas = love.graphics.newCanvas(self.viewportwidth * 8 / love.window.getDPIScale(), (self.viewportheight + 4) * 8 / love.window.getDPIScale())
 	self.canvas:setFilter("nearest", "nearest")
+	graphics.reload(settings.texture, settings.palette)
 	if settings.mazesupplier then
 		self.mazesupplier = settings.mazesupplier
 	else
@@ -582,6 +583,7 @@ function maze:update()
 			end
 		end
 		local ptx, pty = self.pacman:gettilepos()
+		local px, py = self.pacman:getpos()
 		do -- point ghost group handling
 			local i = 1
 			local del = 0
@@ -643,7 +645,7 @@ function maze:update()
 						local fx, fy = f:getpos()
 						self.fruits[i] = f
 						f:update()
-						if (ptx == tx or ptx + 1 == tx) and pty == ty then
+						if px >= fx - 4 and px < fx + 4 and py >= fy - 4 and py < fy + 4 then
 							f:eaten()
 							self.soundplayer("sfx", "eat_fruit")
 							local bonus = getclamped(maze.fruitbonus, self.level)

@@ -77,11 +77,27 @@ local function draw(...)
 	love.graphics.draw(graphics.texture, ...)
 end
 
-local function reload()
-	graphics.palettedata = love.image.newImageData "assets/palette.png"
-	graphics.palette = love.graphics.newImage(graphics.palettedata)
+local function reload(texture, palette)
+	local texdat
+	local paldat
+	if type(texture) == "string" then
+		texdat = love.image.newImageData(texture)
+	elseif type(texture) == "nil" then
+		texdat = love.image.newImageData("pacman/texture.png")
+	else
+		texdat = texture
+	end
+	if type(palette) == "string" then
+		paldat = love.image.newImageData(palette)
+	elseif type(palette) == "nil" then
+		paldat = love.image.newImageData "pacman/palette.png"
+	else
+		paldat = palette
+	end
+	graphics.palettedata = paldat
+	graphics.palette = love.graphics.newImage(paldat)
 	graphics.palette:setFilter("nearest", "nearest")
-	graphics.texture = love.graphics.newImage "assets/texture.png"
+	graphics.texture = love.graphics.newImage(texdat)
 	graphics.texture:setFilter("nearest", "nearest")
 	shader:send("palette", graphics.palette)
 	shader:send("palette_size", {graphics.palette:getDimensions()})

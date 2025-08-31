@@ -157,24 +157,12 @@ function freeplay.update()
 				end
 			end
 			sounds.play_sfx("credit")
-			local mazesupplier
-			local mazestxt = love.filesystem.read("assets/mazes.txt")
-			if mazestxt then
-				local mazes = {}
-				for m in love.filesystem.read("assets/mazes.txt"):gmatch("[^\n\r]+") do
-					mazes[#mazes+1] = m
-				end
-				function mazesupplier(m, level)
-					return love.filesystem.read("assets/mazes/"..mazes[((level-1)%#mazes) + 1])
-				end
-			end
 			SwapScene(require "scenes.game", {
 				killscreen = self.KILLSCREEN,
 				lives = self.LIVES,
 				level = self.LEVEL,
 				bonuslife = self.BONUSLIFE,
 				crtshader = self.CRTSHADER,
-				mazesupplier = mazesupplier,
 			})
 		end
 	end
