@@ -24,7 +24,7 @@ vec4 effect(vec4 color, Image tex, vec2 uv, vec2 px) {
 		// to cartesian coordinates
 		uv = (uv + vec2(1.0)) / 2.0;
 		// scanlines
-		float scanlinepos = mod(uv.y * dimensions.y, 1.0);
+		float scanlinepos = mod(uv.x * dimensions.x, 1.0);
 		float dim;
 		if (scanlinepos < 0.5)
 			dim = scanlinepos + 0.5;
