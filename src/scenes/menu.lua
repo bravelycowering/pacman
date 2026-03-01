@@ -214,7 +214,7 @@ function menu.gui()
 		height = math.min(width, height)
 		local h = cheight - height/1.2
 		if currentmenu == "main" then
-			ui.cursor(0, h)
+			ui.cursor(0, cheight - 300)
 		else
 			ui.cursor(0, math.min(h, cheight/2))
 		end
@@ -238,6 +238,9 @@ function menu.gui()
 			nextmenu = "settings"
 			sounds.play_sfx("credit")
 		end
+		love.graphics.setColor(1, 1, 1, 0.5)
+		love.graphics.print("v0.2\nNot associated with NAMCO", 0, love.graphics.getHeight() - 16)
+		love.graphics.setColor(1, 1, 1, 1)
 	elseif currentmenu == "settings" then
 		local sh = settings.getn("shader", 0)
 		if ui.button(ui.icons.video, translate("shader", lang.translate("shader."..tostring(sh))), width) then
