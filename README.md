@@ -6,6 +6,8 @@ Be warned, code is messy. This is just a project for me to enjoy and learn from,
 
 Pull requests for small things are welcome, but at the end of the day this is still just my personal hobby project.
 
+This project also contains a slightly modified version of [apicici/cimgui-love](https://codeberg.org/apicici/cimgui-love/src/branch/main).
+
 ## Running
 
 You will need to install [LOVE2D](https://love2d.org/), at which point you can run the project by using the `love` command (`lovec` on Windows). The editor requires a separate cimgui shared library.
