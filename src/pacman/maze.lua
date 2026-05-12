@@ -43,12 +43,6 @@ maze.maxeatless = { 240, 240, 240, 240, 180 }
 maze.ids = {}
 maze.ids.dot = 164
 maze.ids.powerdot = 165
-maze.ids.tunnel = 166
-maze.ids.start = 224
-maze.ids.fruit = 225
-maze.ids.ghostbox = 226
-maze.ids.ghost = 240
-maze.ids.ghosts = 6
 
 local function getclamped(list, value)
 	return list[math.max(1, math.min(value, #list))]
