@@ -10,4 +10,4 @@ This project also contains a slightly modified version of [apicici/cimgui-love](
 
 ## Running
 
-You will need to install [LOVE2D](https://love2d.org/), at which point you can run the project by using the `love` command (`lovec` on Windows). The editor requires a separate cimgui shared library.
+You will need to install [LOVE2D](https://love2d.org/), at which point you can run the project by using the `love` command (`lovec` on Windows). Using the editor requires a separate cimgui shared library, along with LOVE2D 12.
